@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ops Tracker v4 — Viamobile/Kashy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#F5F4F0;--surf:#FFF;--surf2:#EEECE7;--bord:#E0DDD6;--bord2:#C5C2BB;
+  --tx:#18170F;--tx2:#65635A;--tx3:#9E9B92;
+  --pur:#4F46B8;--pur-l:#EEEDFB;--pur-d:#3730A3;
+  --grn-bg:#E8F5DA;--grn-tx:#235209;
+  --amb-bg:#FDF3DC;--amb-tx:#6B4200;
+  --red-bg:#FDEAEA;--red-tx:#8B1F1F;
+  --blu-bg:#E3EEF9;--blu-tx:#0A3F78;
+  --tel-bg:#DFF5EC;--tel-tx:#0A4F3A;
+  --cor-bg:#FCEEE8;--cor-tx:#7A2910;
+  --org:#F97316;--org-l:#FFF0E5;
+  --r:8px;--rl:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#EEF2FF 0%,#F5F4F0 100%)}
+.login-card{background:var(--surf);border:1px solid var(--bord);border-radius:20px;padding:2.5rem;width:min(400px,95vw);box-shadow:0 8px 32px rgba(79,70,184,.1)}
+.login-logo{width:52px;height:52px;background:var(--pur);border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;margin:0 auto 1.25rem}
+.login-title{font-size:22px;font-weight:600;color:var(--tx);margin-bottom:4px;text-align:center}
+.login-sub{font-size:13px;color:var(--tx2);margin-bottom:2rem;text-align:center}
+.login-err{background:var(--red-bg);color:var(--red-tx);border-radius:var(--r);padding:8px 12px;font-size:12px;margin-bottom:12px;display:none;text-align:left}
+.layout{display:flex;min-height:100vh}
+.sb{width:230px;background:var(--surf);border-right:1px solid var(--bord);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-logo{padding:1.25rem 1.25rem 1rem;border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:10px}
+.sb-icon{width:34px;height:34px;background:var(--pur);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0}
+.sb-title{font-size:13px;font-weight:600;color:var(--tx);line-height:1.2}
+.sb-sub{font-size:10px;color:var(--tx3)}
+.sb-sec{padding:1rem .75rem .5rem}
+.sb-lbl{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding:0 .5rem;margin-bottom:6px}
+.nav{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--r);cursor:pointer;color:var(--tx2);font-size:13px;border:none;background:none;width:100%;text-align:left;transition:all .12s}
+.nav:hover{background:var(--surf2);color:var(--tx)}
+.nav.on{background:var(--pur-l);color:var(--pur);font-weight:500}
+.nav i{font-size:17px;flex-shrink:0}
+.nb{margin-left:auto;background:var(--pur);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;font-family:'DM Mono',monospace;font-weight:500}
+.nb.red{background:#C0392B}
+.sb-user{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid var(--bord);display:flex;align-items:center;gap:8px}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:var(--pur-l);color:var(--pur);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.sb-uname{font-size:12px;font-weight:500;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-urole{font-size:10px;color:var(--tx3)}
+.ab{background:#FFF7ED;border-bottom:1px solid #FED7AA;padding:8px 1.5rem;display:flex;align-items:center;gap:10px;font-size:12px;color:#92400E}
+.ab.hide{display:none}
+.ab-chip{background:#FEF3C7;border:1px solid #FCD34D;border-radius:20px;padding:2px 10px;font-size:11px;color:#92400E;cursor:pointer;white-space:nowrap}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--surf);border-bottom:1px solid var(--bord);padding:.875rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pg-title{font-size:15px;font-weight:600;color:var(--tx)}
+.tb-acts{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.content{padding:1.5rem;overflow-y:auto;flex:1}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--r);border:1px solid var(--bord2);background:var(--surf);color:var(--tx);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .12s;white-space:nowrap}
+.btn:hover{background:var(--surf2)}.btn:active{transform:scale(.98)}
+.btn-p{background:var(--pur);color:#fff;border-color:var(--pur)}.btn-p:hover{background:var(--pur-d)}
+.btn-d{border-color:#E05252;color:#8B1F1F}.btn-d:hover{background:var(--red-bg)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.fab{position:fixed;bottom:28px;right:28px;width:52px;height:52px;border-radius:50%;background:var(--pur);color:#fff;border:none;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(79,70,184,.35);z-index:150;transition:all .15s}
+.fab:hover{background:var(--pur-d);transform:scale(1.07)}
+.fab-menu{position:fixed;bottom:92px;right:28px;display:none;flex-direction:column;gap:8px;z-index:150}
+.fab-menu.open{display:flex}
+.fab-opt{display:flex;align-items:center;gap:8px;background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);padding:8px 14px;cursor:pointer;font-size:13px;color:var(--tx);font-family:'DM Sans',sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.1);transition:all .12s}
+.fab-opt:hover{background:var(--surf2)}.fab-opt i{font-size:16px;color:var(--pur)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem}
+.kpi{background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);padding:14px 16px}
+.kpi .lbl{font-size:11px;color:var(--tx2);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.kpi .lbl i{font-size:13px}
+.kpi .val{font-size:28px;font-weight:300;color:var(--tx);font-family:'DM Mono',monospace;line-height:1}
+.kpi .delta{font-size:11px;margin-top:5px;color:var(--tx3)}
+.delta.up{color:var(--grn-tx)}.delta.danger{color:var(--red-tx)}.delta.warn{color:var(--amb-tx)}.delta.org{color:#C2410C}
+.card{background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);overflow:hidden;margin-bottom:1.25rem}
+.card-hd{padding:12px 16px;border-bottom:1px solid var(--bord);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.card-title{font-size:13px;font-weight:600;color:var(--tx);display:flex;align-items:center;gap:6px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{background:var(--surf2);font-size:10px;font-weight:600;color:var(--tx2);text-align:left;padding:8px 12px;border-bottom:1px solid var(--bord);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+td{font-size:12px;color:var(--tx);padding:9px 12px;border-bottom:1px solid var(--bord);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr.row:hover td{background:#FAFAF7;cursor:pointer}
+tr.od td{background:#FFFBF5}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.b-new{background:var(--blu-bg);color:var(--blu-tx)}.b-wip{background:var(--amb-bg);color:var(--amb-tx)}
+.b-done{background:var(--grn-bg);color:var(--grn-tx)}.b-blk{background:var(--red-bg);color:var(--red-tx)}
+.b-rev{background:var(--pur-l);color:var(--pur)}.b-hi{background:var(--red-bg);color:var(--red-tx)}
+.b-md{background:var(--amb-bg);color:var(--amb-tx)}.b-lo{background:var(--grn-bg);color:var(--grn-tx)}
+.b-int{background:var(--pur-l);color:var(--pur)}.b-ext{background:var(--tel-bg);color:var(--tel-tx)}
+.b-aud{background:var(--cor-bg);color:var(--cor-tx)}.b-od{background:var(--org-l);color:#C2410C}
+.b-rec{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;background:var(--surf2);color:var(--tx2);margin:1px}
+.avatar{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex-shrink:0;vertical-align:middle}
+.pb-wrap{background:var(--surf2);border-radius:20px;height:5px;overflow:hidden;display:inline-block;vertical-align:middle}
+.pb{height:5px;border-radius:20px;background:var(--pur)}.pb.od{background:var(--org)}
+.fbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{padding:4px 12px;border:1px solid var(--bord2);border-radius:20px;font-size:11px;cursor:pointer;background:none;color:var(--tx2);font-family:'DM Sans',sans-serif;transition:all .12s;font-weight:500}
+.chip.on{background:var(--pur);color:#fff;border-color:var(--pur)}.chip:hover:not(.on){background:var(--surf2);color:var(--tx)}
+.sbar{display:flex;align-items:center;gap:8px;background:var(--surf);border:1px solid var(--bord2);border-radius:var(--r);padding:0 10px;margin-bottom:12px}
+.sbar i{color:var(--tx3);font-size:16px}
+.sbar input{border:none;background:none;font-size:13px;padding:8px 0;outline:none;flex:1;color:var(--tx);font-family:'DM Sans',sans-serif}
+.empty{text-align:center;padding:2.5rem;color:var(--tx2);font-size:13px}
+.empty i{font-size:30px;color:var(--tx3);display:block;margin-bottom:8px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:1.25rem}
+.cc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);padding:16px}
+.cc-title{font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.cc-wrap{position:relative;height:180px}
+.ov{display:none;position:fixed;inset:0;background:rgba(15,14,10,.4);z-index:200;align-items:flex-start;justify-content:center;padding:50px 16px;overflow-y:auto}
+.ov.open{display:flex}
+.modal{background:var(--surf);border-radius:16px;padding:1.5rem;width:min(620px,100%);border:1px solid var(--bord);margin-bottom:40px}
+.modal.wide{width:min(760px,100%)}.modal.xl{width:min(920px,100%)}
+.mhd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:12px}
+.mtitle{font-size:15px;font-weight:600;color:var(--tx)}.msub{font-size:11px;color:var(--tx3);margin-top:2px}
+.cx{background:none;border:none;cursor:pointer;color:var(--tx2);font-size:18px;padding:3px;border-radius:var(--r);flex-shrink:0}
+.cx:hover{background:var(--surf2)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:11px}
+.fg label{font-size:11px;font-weight:600;color:var(--tx2)}
+.fg input,.fg select,.fg textarea{font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 10px;border:1px solid var(--bord2);border-radius:var(--r);background:var(--surf);color:var(--tx);outline:none;transition:border .12s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--pur);box-shadow:0 0 0 3px rgba(79,70,184,.08)}
+.fg textarea{min-height:64px;resize:vertical}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.rec-box{background:var(--grn-bg);border:1px solid #BBF7D0;border-radius:var(--r);padding:12px 14px;margin-bottom:11px}
+.rec-box-title{font-size:11px;font-weight:600;color:#166534;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.rec-toggle{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+.rec-toggle input{width:16px;height:16px;accent-color:var(--pur);cursor:pointer;flex-shrink:0}
+.rec-toggle label{font-size:13px;font-weight:500;color:var(--tx);cursor:pointer}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--bord);border-radius:var(--r);overflow:hidden;margin-bottom:1rem}
+.dc{padding:8px 12px;border-bottom:1px solid var(--bord);border-right:1px solid var(--bord)}
+.dc:nth-child(even){border-right:none}.dc.full{grid-column:1/-1;border-right:none}.dc:last-child{border-bottom:none}
+.dc .dk{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.dc .dv{font-size:12px;color:var(--tx);word-break:break-word;white-space:normal}
+.sdiv{font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin:1rem 0 .5rem;display:flex;align-items:center;gap:6px}
+.sdiv::after{content:'';flex:1;height:1px;background:var(--bord)}
+.ps{background:var(--surf2);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--pur);position:relative;margin-bottom:8px}
+.ps-num{font-size:10px;font-weight:600;color:var(--pur);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.ps-title{font-size:13px;font-weight:500;color:var(--tx);margin-bottom:6px}
+.ps-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--tx2)}
+.ps-meta span{display:flex;align-items:center;gap:3px}
+.ps-del{position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:14px;padding:2px}
+.ps-del:hover{color:var(--red-tx)}
+.cm-list{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;margin-bottom:10px}
+.cm-item{background:var(--surf2);border-radius:var(--r);padding:9px 12px}
+.cm-meta{font-size:10px;color:var(--tx3);margin-bottom:3px;font-family:'DM Mono',monospace}
+.cm-txt{color:var(--tx);font-size:12px;white-space:pre-wrap;word-break:break-word}
+.cm-row{display:flex;gap:8px;align-items:flex-end}
+.cm-row textarea{flex:1;font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 10px;border:1px solid var(--bord2);border-radius:var(--r);resize:none;min-height:36px;background:var(--surf);color:var(--tx);outline:none}
+.cm-row textarea:focus{border-color:var(--pur)}
+.at-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.at-item{display:flex;align-items:center;gap:8px;background:var(--surf2);border-radius:var(--r);padding:7px 10px;font-size:12px}
+.at-item i{font-size:16px;color:var(--pur);flex-shrink:0}
+.at-item .aname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-item a{color:var(--pur);font-size:11px;white-space:nowrap;text-decoration:none}.at-item a:hover{text-decoration:underline}
+.at-row{display:flex;gap:8px;margin-bottom:4px}
+.at-row input{flex:1;padding:7px 10px;border:1px solid var(--bord2);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:12px;background:var(--surf);color:var(--tx);outline:none}
+.rc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.ico{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;background:var(--pur-l);color:var(--pur)}
+.lg-row{display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid var(--bord);font-size:12px;align-items:flex-start}
+.lg-row:last-child{border-bottom:none}
+.lg-ts{color:var(--tx3);font-family:'DM Mono',monospace;font-size:10px;width:130px;flex-shrink:0;padding-top:1px}
+.lg-act{color:var(--tx);flex:1;white-space:normal;word-break:break-word}
+.lg-ref{color:var(--tx3);font-family:'DM Mono',monospace;font-size:10px;width:90px;text-align:right;flex-shrink:0}
+.collab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1.25rem}
+.collab-card{background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);padding:16px;text-align:center}
+.collab-av{width:48px;height:48px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#fff}
+.collab-name{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:2px}
+.collab-role{font-size:11px;color:var(--tx2);margin-bottom:6px}
+.collab-email{font-size:10px;color:var(--tx3);margin-bottom:12px}
+.collab-stats{display:flex;justify-content:center;gap:12px}
+.cstat .n{font-size:18px;font-weight:300;font-family:'DM Mono',monospace;color:var(--tx);text-align:center}
+.cstat .l{font-size:10px;color:var(--tx3);text-align:center}
+.rpt-filters{background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);padding:16px;margin-bottom:1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.rpt-filters .fg{margin-bottom:0;min-width:140px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#18170F;color:#fff;padding:10px 18px;border-radius:var(--rl);font-size:12px;display:flex;align-items:center;gap:8px;z-index:999;opacity:0;transition:all .25s;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.info-box{border-radius:var(--rl);padding:12px 16px;margin-bottom:1.25rem;font-size:12px;display:flex;align-items:flex-start;gap:10px;background:var(--grn-bg);border:1px solid #BBF7D0;color:#166534}
+.info-box i{font-size:18px;flex-shrink:0;margin-top:1px}
+.rhi{background:var(--surf2);border-radius:var(--r);padding:7px 10px;margin-bottom:6px;font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:8px}
+.rhi i{font-size:13px;color:var(--grn-tx);flex-shrink:0}
+@media(max-width:768px){.sb{display:none}.content{padding:1rem}.kgrid{grid-template-columns:repeat(2,1fr)}.cgrid{grid-template-columns:1fr}.frow,.frow3{grid-template-columns:1fr}.dgrid{grid-template-columns:1fr}.dc{border-right:none}}
+</style>
+</head>
+<body>
+<!-- LOGIN -->
+<div class="login-wrap" id="login-screen">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-shield-check"></i></div>
+    <div class="login-title">Ops Tracker v4</div>
+    <div class="login-sub">Viamobile / Kashy — Mobile Payment</div>
+    <div class="login-err" id="login-err"></div>
+    <div class="fg" style="text-align:left"><label>Email</label><input type="email" id="li-email" placeholder="votre@viamobile.tn" autocomplete="email"></div>
+    <div class="fg" style="text-align:left"><label>Mot de passe</label><input type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn btn-p" style="width:100%;justify-content:center;padding:10px;margin-top:4px" onclick="doLogin()"><i class="ti ti-login"></i> Se connecter</button>
+    <div style="font-size:11px;color:var(--tx3);margin-top:16px;text-align:center">Accès réservé — Équipe Viamobile/Kashy</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="layout" id="app-screen" style="display:none">
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-icon"><i class="ti ti-shield-check"></i></div>
+    <div><div class="sb-title">Ops Tracker</div><div class="sb-sub">Viamobile / Kashy v4</div></div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Navigation</div>
+    <button class="nav on" onclick="goTab('dashboard',this)"><i class="ti ti-layout-dashboard"></i>Tableau de bord</button>
+    <button class="nav" onclick="goTab('stats',this)"><i class="ti ti-chart-bar"></i>Statistiques</button>
+    <button class="nav" onclick="goTab('tasks',this)"><i class="ti ti-checkbox"></i>Tâches <span class="nb" id="nb-tasks">0</span></button>
+    <button class="nav" onclick="goTab('requests',this)"><i class="ti ti-messages"></i>Demandes <span class="nb" id="nb-reqs">0</span></button>
+    <button class="nav" onclick="goTab('recurring',this)"><i class="ti ti-repeat"></i>Récurrentes <span class="nb" id="nb-recur">0</span></button>
+    <button class="nav" onclick="goTab('collabs',this)"><i class="ti ti-users"></i>Collaborateurs</button>
+    <button class="nav" onclick="goTab('refs',this)"><i class="ti ti-books"></i>Références</button>
+    <button class="nav" onclick="goTab('report',this)"><i class="ti ti-file-analytics"></i>Rapport période</button>
+    <button class="nav" onclick="goTab('audit',this)"><i class="ti ti-certificate"></i>Audit & Journal</button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Alertes</div>
+    <button class="nav" onclick="goTab('alerts',this)" style="color:#C2410C"><i class="ti ti-alarm" style="color:var(--org)"></i>Échéances <span class="nb red" id="nb-alerts">0</span></button>
+  </div>
+  <div class="sb-user">
+    <div class="sb-avatar" id="sb-av">?</div>
+    <div style="flex:1;min-width:0"><div class="sb-uname" id="sb-uname">—</div><div class="sb-urole" id="sb-urole">—</div></div>
+    <button class="btn btn-sm" onclick="doLogout()" title="Déconnexion" style="padding:4px 6px"><i class="ti ti-logout" style="font-size:14px"></i></button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="ab hide" id="alert-banner">
+    <i class="ti ti-alarm" style="font-size:16px;color:var(--org);flex-shrink:0"></i>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1" id="alert-items"></div>
+    <button class="btn btn-sm" onclick="goTab('alerts',null)" style="flex-shrink:0"><i class="ti ti-arrow-right"></i> Voir</button>
+  </div>
+  <div class="topbar">
+    <div class="pg-title" id="page-title">Tableau de bord</div>
+    <div class="tb-acts">
+      <button class="btn btn-sm" onclick="exportCSV()"><i class="ti ti-table-export"></i> Export CSV</button>
+      <button class="btn btn-sm" onclick="exportJSON()"><i class="ti ti-download"></i> JSON</button>
+      <button class="btn btn-p" onclick="openNewModal()"><i class="ti ti-plus"></i> Nouvelle entrée</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <div id="tab-dashboard">
+      <div class="kgrid">
+        <div class="kpi"><div class="lbl"><i class="ti ti-player-play"></i>Actives</div><div class="val" id="k-active">—</div><div class="delta warn">En cours</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-check"></i>Terminées</div><div class="val" id="k-done">—</div><div class="delta up">Clôturées</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-alarm"></i>En retard</div><div class="val" id="k-overdue" style="color:#C2410C">—</div><div class="delta org">Urgent</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-alert-triangle"></i>Bloquées</div><div class="val" id="k-blocked">—</div><div class="delta danger">Action req.</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-repeat"></i>Récurrentes</div><div class="val" id="k-recur">—</div><div class="delta up">Actives</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-certificate"></i>Prêt audit</div><div class="val" id="k-audit">—</div><div class="delta up">Avec réf.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-clock-hour-3"></i>Activité récente</span></div>
+        <table><thead><tr><th style="width:8%">ID</th><th style="width:24%">Titre</th><th style="width:12%">Statut</th><th style="width:10%">Priorité</th><th style="width:14%">Assigné à</th><th style="width:12%">Catégorie</th><th style="width:10%">Échéance</th><th style="width:10%">Avct.</th></tr></thead>
+        <tbody id="db-body"></tbody></table>
+      </div>
+    </div>
+
+    <div id="tab-stats" style="display:none">
+      <div class="cgrid">
+        <div class="cc"><div class="cc-title">Par statut</div><div class="cc-wrap"><canvas id="chart-status"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Par priorité</div><div class="cc-wrap"><canvas id="chart-priority"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Par catégorie</div><div class="cc-wrap"><canvas id="chart-cat"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Charge par collaborateur</div><div class="cc-wrap"><canvas id="chart-collab"></canvas></div></div>
+      </div>
+      <div class="cgrid" style="grid-template-columns:1fr 1fr">
+        <div class="cc"><div class="cc-title">Taux complétion par collaborateur (%)</div><div class="cc-wrap"><canvas id="chart-completion"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Avancement tâches en cours</div><div id="progress-bars" style="padding-top:4px"></div></div>
+      </div>
+    </div>
+
+    <div id="tab-tasks" style="display:none">
+      <div class="sbar"><i class="ti ti-search"></i><input type="text" id="task-search" placeholder="Rechercher…" oninput="renderTasks()"></div>
+      <div class="fbar" id="task-fbar">
+        <button class="chip on" onclick="setFilter('task','all',this)">Toutes</button>
+        <button class="chip" onclick="setFilter('task','new',this)">Nouveau</button>
+        <button class="chip" onclick="setFilter('task','wip',this)">En cours</button>
+        <button class="chip" onclick="setFilter('task','review',this)">En révision</button>
+        <button class="chip" onclick="setFilter('task','blocked',this)">Bloqué</button>
+        <button class="chip" onclick="setFilter('task','done',this)">Terminé</button>
+      </div>
+      <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:21%">Titre</th><th style="width:12%">Statut</th><th style="width:9%">Priorité</th><th style="width:13%">Assigné à</th><th style="width:10%">Catégorie</th><th style="width:10%">Échéance</th><th style="width:9%">Avct.</th><th style="width:4%">💬</th><th style="width:5%"></th></tr></thead>
+      <tbody id="task-body"></tbody></table></div>
+    </div>
+
+    <div id="tab-requests" style="display:none">
+      <div class="sbar"><i class="ti ti-search"></i><input type="text" id="req-search" placeholder="Rechercher…" oninput="renderReqs()"></div>
+      <div class="fbar" id="req-fbar">
+        <button class="chip on" onclick="setFilter('req','all',this)">Toutes</button>
+        <button class="chip" onclick="setFilter('req','request-int',this)">Interne</button>
+        <button class="chip" onclick="setFilter('req','request-ext',this)">Externe</button>
+        <button class="chip" onclick="setFilter('req','audit-req',this)">Audit</button>
+      </div>
+      <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:21%">Objet</th><th style="width:10%">Type</th><th style="width:12%">Assigné à</th><th style="width:11%">Origine</th><th style="width:11%">Statut</th><th style="width:9%">Date</th><th style="width:9%">Réf.</th><th style="width:4%">💬</th><th style="width:6%"></th></tr></thead>
+      <tbody id="req-body"></tbody></table></div>
+    </div>
+
+    <div id="tab-recurring" style="display:none">
+      <div class="info-box"><i class="ti ti-info-circle"></i><div>Clôturer (✓) une tâche récurrente crée automatiquement une nouvelle occurrence avec la prochaine échéance calculée selon la fréquence choisie.</div></div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-repeat"></i>Récurrentes actives</span><button class="btn btn-p btn-sm" onclick="openNewModal()"><i class="ti ti-plus"></i> Nouvelle</button></div>
+        <table><thead><tr><th style="width:7%">ID</th><th style="width:21%">Titre</th><th style="width:12%">Statut</th><th style="width:14%">Fréquence</th><th style="width:12%">Assigné</th><th style="width:11%">Prochaine éch.</th><th style="width:8%">Occur.</th><th style="width:15%"></th></tr></thead>
+        <tbody id="recur-body"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-history"></i>Historique occurrences</span></div>
+        <table><thead><tr><th style="width:9%">Parent</th><th style="width:24%">Titre</th><th style="width:13%">Fréquence</th><th style="width:12%">Clôturé le</th><th style="width:12%">Éch. parent</th><th style="width:12%">Nouvelle éch.</th><th style="width:18%">Nouvelle tâche</th></tr></thead>
+        <tbody id="recur-hist"></tbody></table>
+      </div>
+    </div>
+
+    <div id="tab-collabs" style="display:none">
+      <div class="collab-grid" id="collab-grid"></div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-list"></i>Toutes les tâches assignées</span></div>
+        <table><thead><tr><th style="width:7%">ID</th><th style="width:24%">Titre</th><th style="width:12%">Statut</th><th style="width:10%">Priorité</th><th style="width:14%">Assigné à</th><th style="width:11%">Échéance</th><th style="width:10%">Avct.</th><th style="width:12%"></th></tr></thead>
+        <tbody id="collab-tasks"></tbody></table>
+      </div>
+    </div>
+
+    <div id="tab-alerts" style="display:none">
+      <div class="card" style="border-left:4px solid var(--org)">
+        <div class="card-hd"><span class="card-title" style="color:#C2410C"><i class="ti ti-alarm"></i>Échéances dépassées ou dans moins de 3 jours</span></div>
+        <table><thead><tr><th style="width:7%">ID</th><th style="width:23%">Titre</th><th style="width:11%">Statut</th><th style="width:9%">Priorité</th><th style="width:13%">Assigné</th><th style="width:10%">Échéance</th><th style="width:9%">Retard</th><th style="width:10%">Type</th><th style="width:8%"></th></tr></thead>
+        <tbody id="alert-body"></tbody></table>
+      </div>
+    </div>
+
+    <div id="tab-refs" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div class="sbar" style="flex:1;margin:0"><i class="ti ti-search"></i><input type="text" id="ref-search" placeholder="Rechercher…" oninput="renderRefs()"></div>
+        <button class="btn btn-p btn-sm" onclick="openRefModal()"><i class="ti ti-plus"></i> Ajouter</button>
+      </div>
+      <div id="ref-list"></div>
+    </div>
+
+    <div id="tab-report" style="display:none">
+      <div class="rpt-filters">
+        <div class="fg"><label>Date début</label><input type="date" id="rpt-start"></div>
+        <div class="fg"><label>Date fin</label><input type="date" id="rpt-end"></div>
+        <div class="fg"><label>Collaborateur</label><select id="rpt-collab"><option value="all">Tous</option></select></div>
+        <div class="fg"><label>Statut</label><select id="rpt-status"><option value="all">Tous</option><option value="done">Terminé</option><option value="wip">En cours</option><option value="new">Nouveau</option><option value="blocked">Bloqué</option></select></div>
+        <button class="btn btn-p" onclick="generateReport()"><i class="ti ti-file-analytics"></i> Générer</button>
+        <button class="btn" onclick="exportReportCSV()"><i class="ti ti-table-export"></i> Export CSV</button>
+      </div>
+      <div id="report-content"></div>
+    </div>
+
+    <div id="tab-audit" style="display:none">
+      <div class="kgrid">
+        <div class="kpi"><div class="lbl">Référencées</div><div class="val" id="a-ref">—</div></div>
+        <div class="kpi"><div class="lbl">Demandes clôturées</div><div class="val" id="a-req-done">—</div></div>
+        <div class="kpi"><div class="lbl">Sans échéance</div><div class="val" id="a-nodate">—</div></div>
+        <div class="kpi"><div class="lbl">Commentaires</div><div class="val" id="a-comments">—</div></div>
+        <div class="kpi"><div class="lbl">Pièces jointes</div><div class="val" id="a-attach">—</div></div>
+        <div class="kpi"><div class="lbl">Docs référencés</div><div class="val" id="a-docs">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-list-details"></i>Journal horodaté</span>
+          <button class="btn btn-sm btn-d" onclick="clearLog()"><i class="ti ti-trash"></i> Effacer</button>
+        </div>
+        <div id="log-wrap" style="max-height:420px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<button class="fab" id="fab-btn" onclick="toggleFab()" style="display:none" title="Création rapide"><i class="ti ti-plus"></i></button>
+<div class="fab-menu" id="fab-menu">
+  <div class="fab-opt" onclick="quickCreate('task')"><i class="ti ti-checkbox"></i>Tâche rapide</div>
+  <div class="fab-opt" onclick="quickCreate('request-int')"><i class="ti ti-message"></i>Demande interne</div>
+  <div class="fab-opt" onclick="quickCreate('request-ext')"><i class="ti ti-world"></i>Demande externe</div>
+  <div class="fab-opt" onclick="quickCreate('audit-req')"><i class="ti ti-certificate"></i>Audit</div>
+</div>
+<div class="toast" id="toast"><i class="ti ti-check"></i><span id="toast-msg"></span></div>
+<!-- MODAL NEW ENTRY -->
+<div class="ov" id="ov-new" onclick="ovClose('ov-new',event)">
+<div class="modal">
+  <div class="mhd"><div><div class="mtitle" id="m-lbl">Nouvelle entrée</div><div class="msub" id="m-sub"></div></div><button class="cx" onclick="closeOv('ov-new')"><i class="ti ti-x"></i></button></div>
+  <input type="hidden" id="f-eid">
+  <div class="fg"><label>Titre *</label><input type="text" id="f-title" placeholder="Ex : Rapport mensuel AML"></div>
+  <div class="frow">
+    <div class="fg"><label>Type</label><select id="f-type"><option value="task">Tâche interne</option><option value="request-int">Demande interne</option><option value="request-ext">Demande externe</option><option value="audit-req">Audit / conformité</option></select></div>
+    <div class="fg"><label>Catégorie</label><select id="f-cat"><option>KYC / Onboarding</option><option>Réclamation</option><option>Opérations</option><option>Conformité / AML</option><option>Technique</option><option>Reporting</option><option>Partenaire</option><option>Réglementaire</option><option>Autre</option></select></div>
+  </div>
+  <div class="frow3">
+    <div class="fg"><label>Priorité</label><select id="f-pri"><option value="high">Haute</option><option value="med" selected>Moyenne</option><option value="low">Basse</option></select></div>
+    <div class="fg"><label>Statut</label><select id="f-stat"><option value="new">Nouveau</option><option value="wip">En cours</option><option value="review">En révision</option><option value="blocked">Bloqué</option><option value="done">Terminé</option></select></div>
+    <div class="fg"><label>Avancement (%)</label><input type="number" id="f-pct" min="0" max="100" value="0"></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label>Échéance</label><input type="date" id="f-due"></div>
+    <div class="fg"><label>N° référence</label><input type="text" id="f-ref" placeholder="REF-2026-042"></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label>Assigné à</label><select id="f-assignee"><option value="">— Non assigné —</option></select></div>
+    <div class="fg"><label>Origine / Demandeur</label><input type="text" id="f-origin" placeholder="Service, partenaire…"></div>
+  </div>
+  <div class="fg"><label>Description</label><textarea id="f-desc" placeholder="Contexte, exigences, observations…"></textarea></div>
+  <div class="rec-toggle"><input type="checkbox" id="f-rec" onchange="toggleRec()"><label for="f-rec"><i class="ti ti-repeat" style="vertical-align:-2px;margin-right:3px"></i>Tâche récurrente</label></div>
+  <div id="rec-fields" style="display:none">
+    <div class="rec-box">
+      <div class="rec-box-title"><i class="ti ti-repeat"></i>Paramètres de récurrence</div>
+      <div class="frow">
+        <div class="fg" style="margin-bottom:0"><label>Fréquence</label>
+          <select id="f-freq" onchange="toggleFreqOpts()">
+            <option value="daily">Quotidien</option>
+            <option value="weekly" selected>Hebdomadaire</option>
+            <option value="biweekly">Bimensuel (14j)</option>
+            <option value="monthly">Mensuel</option>
+            <option value="quarterly">Trimestriel</option>
+            <option value="custom">Personnalisé (X jours)</option>
+          </select>
+        </div>
+        <div class="fg" id="grp-days" style="display:none;margin-bottom:0"><label>Tous les X jours</label><input type="number" id="f-days" min="1" max="365" value="14"></div>
+      </div>
+      <div class="fg" id="grp-weekday" style="margin-top:10px;margin-bottom:0"><label>Jour de la semaine</label>
+        <select id="f-weekday">
+          <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
+          <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option><option value="0">Dimanche</option>
+        </select>
+      </div>
+      <div class="fg" style="margin-top:10px;margin-bottom:0"><label>Date de fin (optionnel)</label><input type="date" id="f-rec-end"></div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+    <button class="btn" onclick="closeOv('ov-new')">Annuler</button>
+    <button class="btn btn-p" onclick="saveEntry()"><i class="ti ti-check"></i> Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL QUICK -->
+<div class="ov" id="ov-quick" onclick="ovClose('ov-quick',event)">
+<div class="modal">
+  <div class="mhd"><div><div class="mtitle" id="q-lbl">Création rapide</div></div><button class="cx" onclick="closeOv('ov-quick')"><i class="ti ti-x"></i></button></div>
+  <input type="hidden" id="q-type">
+  <div class="fg"><label>Titre *</label><input type="text" id="q-title" placeholder="Titre de la tâche ou demande"></div>
+  <div class="frow">
+    <div class="fg"><label>Priorité</label><select id="q-pri"><option value="high">Haute</option><option value="med" selected>Moyenne</option><option value="low">Basse</option></select></div>
+    <div class="fg"><label>Échéance</label><input type="date" id="q-due"></div>
+  </div>
+  <div class="fg"><label>Assigné à</label><select id="q-assignee"><option value="">— Non assigné —</option></select></div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+    <button class="btn" onclick="closeOv('ov-quick')">Annuler</button>
+    <button class="btn btn-p" onclick="saveQuick()"><i class="ti ti-bolt"></i> Créer</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL REF -->
+<div class="ov" id="ov-ref" onclick="ovClose('ov-ref',event)">
+<div class="modal">
+  <div class="mhd"><div class="mtitle">Ajouter une référence</div><button class="cx" onclick="closeOv('ov-ref')"><i class="ti ti-x"></i></button></div>
+  <div class="fg"><label>Titre *</label><input type="text" id="r-title" placeholder="Procédure réclamations v3.2"></div>
+  <div class="frow">
+    <div class="fg"><label>Type</label><select id="r-type"><option>Procédure</option><option>Circulaire</option><option>Template</option><option>Rapport</option><option>Contrat</option><option>Guide</option><option>Réglementation</option><option>Autre</option></select></div>
+    <div class="fg"><label>Version</label><input type="text" id="r-ver" placeholder="v1.0"></div>
+  </div>
+  <div class="fg"><label>N° / Référence officielle</label><input type="text" id="r-ref" placeholder="CIRC-2025-03"></div>
+  <div class="fg"><label>Lien (Google Drive, SharePoint, réseau…)</label><input type="text" id="r-link" placeholder="https:// ou \\serveur\dossier"></div>
+  <div class="fg"><label>Tags (virgule)</label><input type="text" id="r-tags" placeholder="KYC, conformité, ops"></div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+    <button class="btn" onclick="closeOv('ov-ref')">Annuler</button>
+    <button class="btn btn-p" onclick="saveRef()"><i class="ti ti-check"></i> Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL DETAIL -->
+<div class="ov" id="ov-det" onclick="ovClose('ov-det',event)">
+<div class="modal xl">
+  <div class="mhd"><div><div class="mtitle" id="det-title">Détail</div><div class="msub" id="det-sub"></div></div><button class="cx" onclick="closeOv('ov-det')"><i class="ti ti-x"></i></button></div>
+  <div id="det-content"></div>
+  <div id="det-recur" style="display:none">
+    <div class="sdiv"><i class="ti ti-repeat" style="font-size:13px"></i>Récurrence</div>
+    <div id="det-recur-info" style="margin-bottom:8px"></div>
+  </div>
+  <div class="sdiv"><i class="ti ti-sitemap" style="font-size:13px"></i>Process & étapes</div>
+  <div id="proc-steps"></div>
+  <div style="background:var(--surf2);border-radius:var(--r);padding:12px;margin-bottom:4px">
+    <div class="frow" style="margin-bottom:8px">
+      <div class="fg" style="margin-bottom:0"><label>Titre de l'étape *</label><input type="text" id="ps-title" placeholder="Ex : Vérification KYC"></div>
+      <div class="fg" style="margin-bottom:0"><label>Responsable</label><input type="text" id="ps-owner" placeholder="Nom ou équipe"></div>
+    </div>
+    <div class="frow" style="margin-bottom:8px">
+      <div class="fg" style="margin-bottom:0"><label>Input</label><input type="text" id="ps-input" placeholder="Données, documents reçus"></div>
+      <div class="fg" style="margin-bottom:0"><label>Output</label><input type="text" id="ps-output" placeholder="Résultat produit"></div>
+    </div>
+    <div class="frow" style="margin-bottom:10px">
+      <div class="fg" style="margin-bottom:0"><label>Outils utilisés</label><input type="text" id="ps-tools" placeholder="Excel, MongoDB, Kashy…"></div>
+      <div class="fg" style="margin-bottom:0"><label>Blocages / dépendances</label><input type="text" id="ps-blocks" placeholder="Attente validation DG…"></div>
+    </div>
+    <button class="btn btn-p btn-sm" onclick="addStep()"><i class="ti ti-plus"></i> Ajouter étape</button>
+  </div>
+  <div class="sdiv" style="margin-top:1rem"><i class="ti ti-paperclip" style="font-size:13px"></i>Pièces jointes & liens</div>
+  <div class="at-list" id="at-list"></div>
+  <div class="at-row">
+    <input type="text" id="at-name" placeholder="Nom du document">
+    <input type="text" id="at-url" placeholder="URL, Google Drive, SharePoint, chemin réseau…" style="flex:2">
+    <button class="btn btn-sm btn-p" onclick="addAttach()"><i class="ti ti-plus"></i></button>
+  </div>
+  <div class="sdiv" style="margin-top:1rem"><i class="ti ti-message-circle" style="font-size:13px"></i>Commentaires</div>
+  <div class="cm-list" id="cm-list"></div>
+  <div class="cm-row">
+    <textarea id="cm-input" placeholder="Ajouter un commentaire… (Ctrl+Entrée)" rows="2"></textarea>
+    <button class="btn btn-p btn-sm" onclick="addComment()"><i class="ti ti-send"></i></button>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+    <button class="btn btn-d btn-sm" id="det-del"><i class="ti ti-trash"></i> Supprimer</button>
+    <button class="btn btn-sm" id="det-edit"><i class="ti ti-edit"></i> Modifier</button>
+    <button class="btn btn-sm" onclick="closeOv('ov-det')">Fermer</button>
+  </div>
+</div>
+</div>
+<script>
+const firebaseConfig={apiKey:"AIzaSyD5AIiaNK-O_WiKmBp5MGYTBgHLtPPepQ8",authDomain:"ops-tracker-7be89.firebaseapp.com",projectId:"ops-tracker-7be89",storageBucket:"ops-tracker-7be89.firebasestorage.app",messagingSenderId:"279656152351",appId:"1:279656152351:web:1410a10210750cf5e7042a"};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.firestore();
+
+const ALL_TABS=['dashboard','stats','tasks','requests','recurring','collabs','alerts','refs','report','audit'];
+const TAB_TITLES={dashboard:'Tableau de bord',stats:'Statistiques',tasks:'Tâches & Traitements',requests:'Demandes',recurring:'Tâches récurrentes',collabs:'Collaborateurs',refs:'Références',report:'Rapport par période',audit:'Audit & Journal',alerts:'Alertes'};
+const SM={new:{l:'Nouveau',c:'b-new'},wip:{l:'En cours',c:'b-wip'},done:{l:'Terminé',c:'b-done'},blocked:{l:'Bloqué',c:'b-blk'},review:{l:'En révision',c:'b-rev'}};
+const PM={high:{l:'Haute',c:'b-hi'},med:{l:'Moyenne',c:'b-md'},low:{l:'Basse',c:'b-lo'}};
+const TM={task:{l:'Tâche',c:'b-new'},'request-int':{l:'Interne',c:'b-int'},'request-ext':{l:'Externe',c:'b-ext'},'audit-req':{l:'Audit',c:'b-aud'}};
+const FM={daily:{l:'Quotidien',d:1},weekly:{l:'Hebdomadaire',d:7},biweekly:{l:'Bimensuel',d:14},monthly:{l:'Mensuel',d:30},quarterly:{l:'Trimestriel',d:90}};
+const WD=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const AVC=['#4F46B8','#0891B2','#059669','#D97706','#DC2626','#7C3AED'];
+const COLLABS=[
+  {id:'me',name:'Zied Mansouri',role:'Ops Control Officer',email:'z.mansouri@viamobile.tn',initials:'ZM'},
+  {id:'c1',name:'Oumayma Ben Rouha',role:'Back Office',email:'o.benrouha@viamobile.tn',initials:'OB'},
+];
+
+let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null;
+
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const nowStr=()=>new Date().toLocaleString('fr-FR');
+const trunc=(s,n)=>s&&s.length>n?s.slice(0,n)+'…':s||'';
+const g=id=>document.getElementById(id);
+const bdg=(map,key)=>{const m=map[key]||{l:key,c:'b-new'};return`<span class="badge ${m.c}">${m.l}</span>`;};
+const daysDiff=due=>{if(!due)return null;const d=new Date(due),t=new Date();t.setHours(0,0,0,0);return Math.floor((d-t)/86400000);};
+const isOverdue=e=>e.status!=='done'&&e.due&&daysDiff(e.due)<0;
+const isUrgent=e=>{const d=daysDiff(e.due);return e.status!=='done'&&e.due&&d!==null&&d>=0&&d<=3;};
+function addDays(s,n){const d=new Date(s);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function addMonths(s,n){const d=new Date(s);d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10);}
+function calcNext(r,from){
+  if(r.freq==='daily')return addDays(from,1);
+  if(r.freq==='weekly'){const wd=parseInt(r.weekday||1);let d=new Date(from);d.setDate(d.getDate()+1);while(d.getDay()!==wd)d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
+  if(r.freq==='biweekly')return addDays(from,14);
+  if(r.freq==='monthly')return addMonths(from,1);
+  if(r.freq==='quarterly')return addMonths(from,3);
+  if(r.freq==='custom')return addDays(from,parseInt(r.days)||7);
+  return addDays(from,7);
+}
+function freqLbl(r){
+  if(!r||!r.enabled)return'—';
+  if(r.freq==='custom')return`Tous les ${r.days}j`;
+  if(r.freq==='weekly'&&r.weekday!==undefined)return`Hebdo (${WD[r.weekday]})`;
+  return FM[r.freq]?FM[r.freq].l:r.freq;
+}
+function pbar(pct,od){const p=Math.min(100,Math.max(0,pct||0));return`<div class="pb-wrap" style="width:70px"><div class="pb${od?' od':''}" style="width:${p}%"></div></div>`;}
+function dueCell(e){
+  if(!e.due)return'<td style="color:var(--tx3);font-size:11px">—</td>';
+  if(e.status==='done')return`<td style="font-size:11px;color:var(--tx3)">${e.due}</td>`;
+  const d=daysDiff(e.due);
+  if(d<0)return`<td><span class="badge b-od"><i class="ti ti-alarm" style="font-size:10px"></i> ${e.due} (${Math.abs(d)}j)</span></td>`;
+  if(d<=3)return`<td style="font-size:11px;color:#C2410C;font-weight:600">${e.due} ⚠</td>`;
+  return`<td style="font-size:11px;color:var(--tx2)">${e.due}</td>`;
+}
+function recBadge(e){if(!e.recur||!e.recur.enabled)return'';return`<span class="badge b-rec" style="margin-left:4px;font-size:9px"><i class="ti ti-repeat" style="font-size:9px"></i> ${freqLbl(e.recur)}</span>`;}
+function collabName(id){if(!id)return'—';const c=COLLABS.find(x=>x.id===id);return c?c.name:'—';}
+function collabAv(id,sz=22){const i=COLLABS.findIndex(x=>x.id===id);const c=COLLABS[i];if(!c)return'';const col=AVC[i%AVC.length];return`<span class="avatar" style="width:${sz}px;height:${sz}px;background:${col};font-size:${Math.floor(sz*.38)}px" title="${c.name}">${c.initials}</span>`;}
+function showToast(msg){const t=g('toast');g('toast-msg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+// AUTH
+auth.onAuthStateChanged(user=>{
+  if(user){
+    curUser=user;
+    g('login-screen').style.display='none';
+    g('app-screen').style.display='flex';
+    g('fab-btn').style.display='flex';
+    g('sb-av').textContent=user.email.slice(0,2).toUpperCase();
+    g('sb-uname').textContent=user.displayName||user.email;
+    const mc=COLLABS.find(c=>c.email===user.email);
+    g('sb-urole').textContent=mc?mc.role:'Utilisateur';
+    populateSelects();
+    subscribeEntries();
+    loadRefs();
+    loadLogs();
+  }else{
+    curUser=null;
+    g('login-screen').style.display='flex';
+    g('app-screen').style.display='none';
+    g('fab-btn').style.display='none';
+    if(unsubEntries){unsubEntries();unsubEntries=null;}
+  }
+});
+function doLogin(){
+  const e=g('li-email').value.trim(),p=g('li-pass').value;
+  g('login-err').style.display='none';
+  auth.signInWithEmailAndPassword(e,p).catch(()=>{g('login-err').textContent='Email ou mot de passe incorrect.';g('login-err').style.display='block';});
+}
+g('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function doLogout(){if(confirm('Se déconnecter ?'))auth.signOut();}
+
+function populateSelects(){
+  ['f-assignee','q-assignee'].forEach(sid=>{
+    const sel=g(sid);if(!sel)return;
+    sel.innerHTML='<option value="">— Non assigné —</option>';
+    COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+  });
+  const rc=g('rpt-collab');if(rc){rc.innerHTML='<option value="all">Tous</option>';COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;rc.appendChild(o);});}
+}
+
+// FIRESTORE
+function subscribeEntries(){
+  if(unsubEntries)unsubEntries();
+  unsubEntries=db.collection('entries').orderBy('createdAt','desc').onSnapshot(snap=>{
+    entries=snap.docs.map(d=>({id:d.id,...d.data()}));
+    entries.forEach(e=>{if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.recur)e.recur={enabled:false};if(!e.steps)e.steps=[];});
+    render();updateBadges();updateAlertBanner();
+  },err=>showToast('Erreur Firebase: '+err.message));
+}
+async function save(data,id){if(id){await db.collection('entries').doc(id).set(data,{merge:true});}else{const r=await db.collection('entries').add({...data,createdAt:new Date().toISOString()});return r.id;}}
+async function del(id){await db.collection('entries').doc(id).delete();}
+async function loadRefs(){const s=await db.collection('refs').orderBy('createdAt','desc').get();refs=s.docs.map(d=>({id:d.id,...d.data()}));if(curTab==='refs')renderRefs();}
+async function loadLogs(){const s=await db.collection('logs').orderBy('ts','desc').limit(200).get();logs=s.docs.map(d=>({id:d.id,...d.data()}));if(curTab==='audit')renderAudit();}
+async function addLog(type,action,ref){const e={ts:nowStr(),type,action,ref,user:curUser?curUser.email:'?'};logs.unshift(e);if(logs.length>200)logs=logs.slice(0,200);await db.collection('logs').add(e);}
+
+// RECURRENCE
+async function spawnNext(e){
+  if(!e.recur||!e.recur.enabled)return null;
+  const baseDue=e.due||todayStr(),nextDue=calcNext(e.recur,baseDue);
+  if(e.recur.endDate&&nextDue>e.recur.endDate){await addLog('Récurrence',`Récurrence terminée : "${e.title}"`,e.id);return null;}
+  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',
+    comments:[{ts:nowStr(),text:`Nouvelle occurrence depuis ${e.id} (clôturé le ${todayStr()}).`,user:curUser?curUser.email:'?'}],attachments:[],steps:[]};
+  const nid=await save(ne,null);
+  await db.collection('recurHist').add({parentId:e.id,newId:nid,title:e.title,freq:freqLbl(e.recur),closedAt:todayStr(),parentDue:e.due,nextDue});
+  await addLog('Récurrence',`Nouvelle occurrence → ${nid} (éch. ${nextDue})`,nid);
+  return nid;
+}
+
+// BADGES
+function updateBadges(){
+  g('nb-tasks').textContent=entries.filter(e=>e.type==='task'&&e.status!=='done').length;
+  g('nb-reqs').textContent=entries.filter(e=>e.type!=='task'&&e.status!=='done').length;
+  g('nb-recur').textContent=entries.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done').length;
+  const al=entries.filter(e=>isOverdue(e)||isUrgent(e));
+  const nb=g('nb-alerts');nb.textContent=al.length;nb.className='nb'+(al.length>0?' red':'');
+}
+function updateAlertBanner(){
+  const od=entries.filter(e=>isOverdue(e)&&e.status!=='done').slice(0,4);
+  const b=g('alert-banner');
+  if(!od.length){b.classList.add('hide');return;}
+  b.classList.remove('hide');
+  g('alert-items').innerHTML=od.map(e=>`<span class="ab-chip" onclick="openDetail('${e.id}')">${e.id.slice(-6)} — ${trunc(e.title,18)} (${e.due})</span>`).join('');
+}
+
+// NAV
+function goTab(id,el){
+  ALL_TABS.forEach(t=>{const e=g('tab-'+t);if(e)e.style.display=t===id?'block':'none';});
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
+  if(el)el.classList.add('on');
+  curTab=id;g('page-title').textContent=TAB_TITLES[id]||id;render();
+}
+function setFilter(which,val,el){
+  filters[which]=val;
+  const bar=which==='task'?'task-fbar':'req-fbar';
+  document.querySelectorAll('#'+bar+' .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  if(which==='task')renderTasks();else renderReqs();
+}
+
+function render(){
+  renderKPIs();
+  if(curTab==='dashboard')renderDashboard();
+  else if(curTab==='stats')renderStats();
+  else if(curTab==='tasks')renderTasks();
+  else if(curTab==='requests')renderReqs();
+  else if(curTab==='recurring')renderRecurring();
+  else if(curTab==='collabs')renderCollabs();
+  else if(curTab==='alerts')renderAlerts();
+  else if(curTab==='refs')renderRefs();
+  else if(curTab==='audit')renderAudit();
+}
+
+function renderKPIs(){
+  g('k-active').textContent=entries.filter(e=>e.type==='task'&&e.status==='wip').length;
+  g('k-done').textContent=entries.filter(e=>e.status==='done').length;
+  g('k-overdue').textContent=entries.filter(e=>isOverdue(e)).length;
+  g('k-blocked').textContent=entries.filter(e=>e.status==='blocked').length;
+  g('k-recur').textContent=entries.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done').length;
+  const wr=entries.filter(e=>e.ref).length;
+  g('k-audit').textContent=entries.length?Math.round(wr/entries.length*100)+'%':'—';
+}
+
+function renderDashboard(){
+  const tb=g('db-body'),list=entries.slice(0,12);
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty"><i class="ti ti-inbox"></i>Aucune entrée.</td></tr>';return;}
+  tb.innerHTML=list.map(e=>{const od=isOverdue(e);return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td title="${e.title}">${trunc(e.title,24)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">RETARD</span>':''}${recBadge(e)}</td>
+    <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),11)}</span></td>
+    <td><span class="tag">${e.cat||'—'}</span></td>${dueCell(e)}<td>${pbar(e.pct,od)}</td></tr>`;}).join('');
+}
+
+function renderTasks(){
+  const q=(g('task-search').value||'').toLowerCase();
+  let list=entries.filter(e=>e.type==='task');
+  if(filters.task!=='all')list=list.filter(e=>e.status===filters.task);
+  if(q)list=list.filter(e=>(e.title+e.ref+e.cat+collabName(e.assignee)).toLowerCase().includes(q));
+  list.sort((a,b)=>isOverdue(a)&&!isOverdue(b)?-1:!isOverdue(a)&&isOverdue(b)?1:0);
+  const tb=g('task-body');
+  if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune tâche.</td></tr>';return;}
+  tb.innerHTML=list.map(e=>{const od=isOverdue(e),nc=(e.comments||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td title="${e.title}">${trunc(e.title,20)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}${recBadge(e)}</td>
+    <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
+    <td><span class="tag">${e.cat||'—'}</span></td>${dueCell(e)}
+    <td>${pbar(e.pct,od)} <span style="font-size:10px;color:var(--tx3)">${e.pct||0}%</span></td>
+    <td style="text-align:center">${nc?`<span class="badge b-rev">${nc}</span>`:''}</td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')" title="Clôturer"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+}
+
+function renderReqs(){
+  const q=(g('req-search').value||'').toLowerCase();
+  let list=entries.filter(e=>e.type!=='task');
+  if(filters.req!=='all')list=list.filter(e=>e.type===filters.req);
+  if(q)list=list.filter(e=>(e.title+e.ref+e.origin+collabName(e.assignee)).toLowerCase().includes(q));
+  const tb=g('req-body');
+  if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune demande.</td></tr>';return;}
+  tb.innerHTML=list.map(e=>{const od=isOverdue(e),nc=(e.comments||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td title="${e.title}">${trunc(e.title,18)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}</td>
+    <td>${bdg(TM,e.type)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
+    <td style="font-size:11px;color:var(--tx2)">${trunc(e.origin,12)||'—'}</td>
+    <td>${bdg(SM,e.status)}</td>
+    <td style="font-size:11px;color:var(--tx2)">${e.createdAt?e.createdAt.slice(0,10):'—'}</td>
+    <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${e.ref||'—'}</td>
+    <td style="text-align:center">${nc?`<span class="badge b-rev">${nc}</span>`:''}</td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+}
+
+function renderRecurring(){
+  const active=entries.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done');
+  const tb=g('recur-body');
+  if(!active.length)tb.innerHTML='<tr><td colspan="8" class="empty"><i class="ti ti-repeat"></i>Aucune tâche récurrente active.</td></tr>';
+  else tb.innerHTML=active.map(e=>{const od=isOverdue(e);return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${e.id.slice(-7)}</td>
+    <td>${trunc(e.title,19)}</td><td>${bdg(SM,e.status)}</td>
+    <td><span class="badge b-rec"><i class="ti ti-repeat" style="font-size:10px"></i> ${freqLbl(e.recur)}</span></td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
+    ${dueCell(e)}<td style="text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--tx3)">—</td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i> Clôturer</button></td></tr>`;}).join('');
+  db.collection('recurHist').orderBy('closedAt','desc').limit(20).get().then(snap=>{
+    const hist=snap.docs.map(d=>d.data());
+    const htb=g('recur-hist');
+    if(!hist.length){htb.innerHTML='<tr><td colspan="7" class="empty">Aucune occurrence clôturée.</td></tr>';return;}
+    htb.innerHTML=hist.map(h=>`<tr>
+      <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${(h.parentId||'').slice(-7)}</td>
+      <td>${trunc(h.title,20)}</td>
+      <td><span class="badge b-rec" style="font-size:9px"><i class="ti ti-repeat" style="font-size:9px"></i> ${h.freq}</span></td>
+      <td style="font-size:11px;color:var(--tx2)">${h.closedAt}</td>
+      <td style="font-size:11px;color:var(--tx2)">${h.parentDue||'—'}</td>
+      <td style="font-size:11px;color:var(--grn-tx);font-weight:600">${h.nextDue}</td>
+      <td><span class="badge b-new" style="cursor:pointer;font-size:9px" onclick="openDetail('${h.newId}')">${(h.newId||'').slice(-7)}</span></td></tr>`).join('');
+  });
+}
+
+function renderCollabs(){
+  g('collab-grid').innerHTML=COLLABS.map((c,i)=>{
+    const col=AVC[i%AVC.length],mt=entries.filter(e=>e.assignee===c.id);
+    const done=mt.filter(e=>e.status==='done').length,wip=mt.filter(e=>e.status==='wip').length,late=mt.filter(e=>isOverdue(e)).length;
+    const rate=mt.length?Math.round(done/mt.length*100):0;
+    return`<div class="collab-card">
+      <div class="collab-av" style="background:${col}">${c.initials}</div>
+      <div class="collab-name">${c.name}</div><div class="collab-role">${c.role}</div>
+      <div class="collab-email">${c.email}</div>
+      <div class="collab-stats">
+        <div class="cstat"><div class="n">${mt.length}</div><div class="l">Total</div></div>
+        <div class="cstat"><div class="n" style="color:var(--amb-tx)">${wip}</div><div class="l">Actives</div></div>
+        <div class="cstat"><div class="n" style="color:var(--grn-tx)">${done}</div><div class="l">Terminées</div></div>
+        <div class="cstat"><div class="n" style="color:#C2410C">${late}</div><div class="l">Retard</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--tx2);margin-bottom:4px"><span>Taux complétion</span><span style="font-weight:600;color:${col}">${rate}%</span></div>
+        <div style="background:var(--surf2);border-radius:20px;height:6px;overflow:hidden"><div style="height:6px;border-radius:20px;background:${col};width:${rate}%"></div></div>
+      </div></div>`;}).join('');
+  const tb=g('collab-tasks'),list=entries.filter(e=>e.assignee).sort((a,b)=>isOverdue(a)?-1:isOverdue(b)?1:0);
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty">Aucune tâche assignée.</td></tr>';return;}
+  tb.innerHTML=list.map(e=>{const od=isOverdue(e);return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td>${trunc(e.title,22)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}</td>
+    <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${collabName(e.assignee)}</span></td>
+    ${dueCell(e)}<td>${pbar(e.pct,od)} <span style="font-size:10px;color:var(--tx3)">${e.pct||0}%</span></td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+}
+
+function renderAlerts(){
+  const list=entries.filter(e=>(isOverdue(e)||isUrgent(e))&&e.status!=='done').sort((a,b)=>daysDiff(a.due)-daysDiff(b.due));
+  const tb=g('alert-body');
+  if(!list.length){tb.innerHTML='<tr><td colspan="9" class="empty"><i class="ti ti-check"></i>Aucune échéance urgente.</td></tr>';return;}
+  tb.innerHTML=list.map(e=>{const d=daysDiff(e.due);const ret=d<0?`<span style="color:#C2410C;font-weight:600">${Math.abs(d)}j</span>`:`<span style="color:#D97706">Dans ${d}j</span>`;
+  return`<tr class="row od" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td>${trunc(e.title,20)}${recBadge(e)}</td>
+    <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
+    <td style="font-size:11px;color:#C2410C;font-weight:600">${e.due}</td>
+    <td>${ret}</td><td>${bdg(TM,e.type)}</td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+}
+
+function renderRefs(){
+  const q=(g('ref-search').value||'').toLowerCase();
+  let list=q?refs.filter(r=>(r.title+r.ref+r.tags+r.type).toLowerCase().includes(q)):refs;
+  const c=g('ref-list');
+  if(!list.length){c.innerHTML='<div class="empty"><i class="ti ti-books"></i>Aucune référence.</div>';return;}
+  c.innerHTML=list.map(r=>`<div class="rc">
+    <div class="ico"><i class="ti ti-file-text"></i></div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:600;color:var(--tx)">${r.title}</span>
+        <span class="badge b-rev" style="font-size:9px">${r.type}</span>
+        ${r.ver?`<span class="tag">${r.ver}</span>`:''}
+      </div>
+      ${r.ref?`<div style="font-size:11px;color:var(--tx2);margin-top:3px;font-family:'DM Mono',monospace">Réf. : ${r.ref}</div>`:''}
+      ${r.tags?`<div style="margin-top:5px">${r.tags.split(',').map(t=>`<span class="tag">${t.trim()}</span>`).join('')}</div>`:''}
+    </div>
+    ${r.link?`<a href="${r.link}" target="_blank" style="font-size:12px;color:var(--pur);flex-shrink:0;padding:4px"><i class="ti ti-external-link"></i></a>`:''}
+    <button class="btn btn-sm btn-d" onclick="delRef('${r.id}')" style="flex-shrink:0"><i class="ti ti-trash"></i></button>
+  </div>`).join('');
+}
+
+function renderAudit(){
+  const wr=entries.filter(e=>e.ref).length;
+  g('a-ref').textContent=`${wr}/${entries.length}`;
+  g('a-req-done').textContent=entries.filter(e=>e.type!=='task'&&e.status==='done').length;
+  g('a-nodate').textContent=entries.filter(e=>!e.due).length;
+  g('a-comments').textContent=entries.reduce((a,e)=>a+(e.comments||[]).length,0);
+  g('a-attach').textContent=entries.reduce((a,e)=>a+(e.attachments||[]).length,0);
+  g('a-docs').textContent=refs.length;
+  const c=g('log-wrap');
+  if(!logs.length){c.innerHTML='<div class="empty">Journal vide.</div>';return;}
+  c.innerHTML=logs.slice(0,100).map(l=>`<div class="lg-row">
+    <span class="lg-ts">${l.ts}</span>
+    <span style="flex-shrink:0;width:80px"><span class="badge b-rev" style="font-size:9px">${l.type}</span></span>
+    <span class="lg-act">${l.action}${l.user?` <span style="color:var(--tx3);font-size:10px">(${l.user})</span>`:''}</span>
+    <span class="lg-ref">${l.ref||''}</span>
+  </div>`).join('');
+}
+
+function renderStats(){
+  const tasks=entries.filter(e=>e.type==='task');
+  function dc(id,type,labels,data,colors){
+    if(charts[id]){charts[id].destroy();delete charts[id];}
+    const ctx=g(id);if(!ctx)return;
+    charts[id]=new Chart(ctx,{type,data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,borderRadius:type==='bar'?4:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:type==='doughnut',position:'right',labels:{font:{family:'DM Sans',size:10},boxWidth:10}}},
+        scales:type==='bar'?{x:{ticks:{font:{family:'DM Sans',size:10}}},y:{ticks:{stepSize:1,font:{family:'DM Sans',size:10}}}}:{}}});
+  }
+  dc('chart-status','doughnut',['Nouveau','En cours','En révision','Bloqué','Terminé'],
+    ['new','wip','review','blocked','done'].map(s=>entries.filter(e=>e.status===s).length),
+    ['#BFDBFE','#FDE68A','#DDD6FE','#FECACA','#BBF7D0']);
+  dc('chart-priority','doughnut',['Haute','Moyenne','Basse'],
+    ['high','med','low'].map(p=>entries.filter(e=>e.priority===p).length),['#FECACA','#FDE68A','#BBF7D0']);
+  const cats=[...new Set(tasks.map(e=>e.cat))];
+  dc('chart-cat','bar',cats,cats.map(c=>tasks.filter(e=>e.cat===c).length),cats.map(()=>'#C7D2FE'));
+  dc('chart-collab','bar',COLLABS.map(c=>c.name.split(' ')[0]),COLLABS.map(c=>entries.filter(e=>e.assignee===c.id&&e.status!=='done').length),AVC);
+  dc('chart-completion','bar',COLLABS.map(c=>c.name.split(' ')[0]),
+    COLLABS.map(c=>{const t=entries.filter(e=>e.assignee===c.id);return t.length?Math.round(t.filter(e=>e.status==='done').length/t.length*100):0;}),AVC);
+  const wip=tasks.filter(t=>t.status==='wip').slice(0,8);
+  g('progress-bars').innerHTML=wip.length?wip.map(e=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:110px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${e.title}</div>
+      <div style="flex:1;background:var(--surf2);border-radius:20px;height:7px;overflow:hidden"><div style="height:7px;border-radius:20px;background:var(--pur);width:${e.pct||0}%"></div></div>
+      <span style="font-size:10px;color:var(--tx2);width:28px;text-align:right;font-family:'DM Mono',monospace;flex-shrink:0">${e.pct||0}%</span>
+    </div>`).join(''):'<div class="empty" style="padding:1rem">Aucune tâche en cours.</div>';
+}
+
+// RAPPORT
+let reportData=[];
+function generateReport(){
+  const start=g('rpt-start').value,end=g('rpt-end').value;
+  const collab=g('rpt-collab').value,status=g('rpt-status').value;
+  let list=entries;
+  if(start)list=list.filter(e=>e.createdAt&&e.createdAt.slice(0,10)>=start);
+  if(end)list=list.filter(e=>e.createdAt&&e.createdAt.slice(0,10)<=end);
+  if(collab!=='all')list=list.filter(e=>e.assignee===collab);
+  if(status!=='all')list=list.filter(e=>e.status===status);
+  reportData=list;
+  const c=g('report-content');
+  if(!list.length){c.innerHTML='<div class="empty"><i class="ti ti-file-off"></i>Aucune entrée pour ces critères.</div>';return;}
+  const total=list.length,done=list.filter(e=>e.status==='done').length,wip=list.filter(e=>e.status==='wip').length,late=list.filter(e=>isOverdue(e)).length;
+  const rate=total?Math.round(done/total*100):0;
+  const cs=COLLABS.map(col=>{const t=list.filter(e=>e.assignee===col.id);return{name:col.name,total:t.length,done:t.filter(e=>e.status==='done').length,late:t.filter(e=>isOverdue(e)).length};}).filter(x=>x.total>0);
+  c.innerHTML=`<div class="kgrid" style="margin-bottom:1.25rem">
+    <div class="kpi"><div class="lbl">Total</div><div class="val">${total}</div></div>
+    <div class="kpi"><div class="lbl">Terminées</div><div class="val" style="color:var(--grn-tx)">${done}</div><div class="delta up">${rate}%</div></div>
+    <div class="kpi"><div class="lbl">En cours</div><div class="val" style="color:var(--amb-tx)">${wip}</div></div>
+    <div class="kpi"><div class="lbl">En retard</div><div class="val" style="color:#C2410C">${late}</div></div>
+  </div>
+  <div class="cgrid" style="margin-bottom:1.25rem">
+    <div class="cc"><div class="cc-title">Statuts</div><div class="cc-wrap"><canvas id="rpt-cs"></canvas></div></div>
+    <div class="cc"><div class="cc-title">Par collaborateur</div><div class="cc-wrap"><canvas id="rpt-cc"></canvas></div></div>
+  </div>
+  ${cs.length?`<div class="card" style="margin-bottom:1.25rem">
+    <div class="card-hd"><span class="card-title"><i class="ti ti-users"></i>Par collaborateur</span></div>
+    <table><thead><tr><th>Collaborateur</th><th>Total</th><th>Terminées</th><th>En retard</th><th>Taux</th></tr></thead>
+    <tbody>${cs.map(s=>`<tr><td style="font-weight:500">${s.name}</td><td style="font-family:'DM Mono',monospace">${s.total}</td><td style="color:var(--grn-tx);font-family:'DM Mono',monospace">${s.done}</td><td style="color:#C2410C;font-family:'DM Mono',monospace">${s.late}</td><td><span class="badge ${s.done/s.total>=.8?'b-done':s.done/s.total>=.5?'b-wip':'b-blk'}">${s.total?Math.round(s.done/s.total*100):0}%</span></td></tr>`).join('')}</tbody></table></div>`:''}
+  <div class="card"><div class="card-hd"><span class="card-title"><i class="ti ti-list"></i>Détail (${list.length})</span></div>
+    <table><thead><tr><th style="width:8%">ID</th><th style="width:26%">Titre</th><th style="width:12%">Statut</th><th style="width:10%">Priorité</th><th style="width:14%">Assigné</th><th style="width:11%">Catégorie</th><th style="width:9%">Créé le</th><th style="width:10%">Échéance</th></tr></thead>
+    <tbody>${list.map(e=>`<tr class="row" onclick="openDetail('${e.id}')">
+      <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${e.id.slice(-7)}</td>
+      <td>${trunc(e.title,24)}</td><td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
+      <td>${collabName(e.assignee)}</td><td><span class="tag">${e.cat||'—'}</span></td>
+      <td style="font-size:11px;color:var(--tx2)">${e.createdAt?e.createdAt.slice(0,10):'—'}</td>
+      ${dueCell(e)}</tr>`).join('')}</tbody></table></div>`;
+  setTimeout(()=>{
+    const sc=['new','wip','review','blocked','done'].map(s=>list.filter(e=>e.status===s).length);
+    const cc=COLLABS.map(c=>list.filter(e=>e.assignee===c.id).length);
+    new Chart(g('rpt-cs'),{type:'doughnut',data:{labels:['Nouveau','En cours','En révision','Bloqué','Terminé'],datasets:[{data:sc,backgroundColor:['#BFDBFE','#FDE68A','#DDD6FE','#FECACA','#BBF7D0'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{family:'DM Sans',size:10},boxWidth:10}}}}});
+    new Chart(g('rpt-cc'),{type:'bar',data:{labels:COLLABS.map(c=>c.name.split(' ')[0]),datasets:[{data:cc,backgroundColor:AVC,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:'DM Sans',size:10}}},y:{ticks:{stepSize:1,font:{family:'DM Sans',size:10}}}}}});
+  },100);
+}
+function exportReportCSV(){
+  if(!reportData.length){alert('Générez d\'abord un rapport.');return;}
+  const h=['ID','Titre','Type','Catégorie','Statut','Priorité','Assigné à','Avancement','Échéance','Référence','Créé le'];
+  const rows=reportData.map(e=>[e.id,e.title,e.type,e.cat,e.status,e.priority,collabName(e.assignee),e.pct||0,e.due||'',e.ref||'',e.createdAt?e.createdAt.slice(0,10):''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  dlFile('\uFEFF'+[h.join(','),...rows].join('\n'),'text/csv','rapport_'+todayStr()+'.csv');
+}
+
+// DETAIL
+function openDetail(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  curDetId=id;
+  if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.steps)e.steps=[];
+  const od=isOverdue(e);
+  g('det-title').textContent=e.id.slice(-8)+' — '+e.title;
+  g('det-sub').textContent=(e.cat||'')+' · '+( e.createdAt?e.createdAt.slice(0,10):'—');
+  g('det-content').innerHTML=`<div class="dgrid">
+    <div class="dc"><div class="dk">Statut</div><div class="dv">${bdg(SM,e.status)}</div></div>
+    <div class="dc"><div class="dk">Priorité</div><div class="dv">${bdg(PM,e.priority)}</div></div>
+    <div class="dc"><div class="dk">Type</div><div class="dv">${bdg(TM,e.type)}</div></div>
+    <div class="dc"><div class="dk">Avancement</div><div class="dv">${pbar(e.pct,od)} <span style="font-size:12px;margin-left:5px">${e.pct||0}%</span></div></div>
+    <div class="dc"><div class="dk">Assigné à</div><div class="dv">${collabAv(e.assignee,18)} <span style="font-size:12px;margin-left:4px">${collabName(e.assignee)}</span></div></div>
+    <div class="dc"><div class="dk">Échéance</div><div class="dv">${e.due?(e.due+(od?' <span class="badge b-od" style="font-size:9px">RETARD</span>':'')):'—'}</div></div>
+    <div class="dc"><div class="dk">N° Référence</div><div class="dv" style="font-family:'DM Mono',monospace;font-size:11px">${e.ref||'—'}</div></div>
+    <div class="dc"><div class="dk">Origine</div><div class="dv">${e.origin||'—'}</div></div>
+    <div class="dc full"><div class="dk">Description</div><div class="dv" style="white-space:pre-wrap">${e.desc||'—'}</div></div>
+  </div>`;
+  const rs=g('det-recur'),ri=g('det-recur-info');
+  if(e.recur&&e.recur.enabled){
+    rs.style.display='block';
+    ri.innerHTML=`<span class="badge b-rec"><i class="ti ti-repeat" style="font-size:11px"></i> ${freqLbl(e.recur)}</span>
+      ${e.recur.endDate?`<span style="font-size:11px;color:var(--tx2);margin-left:8px">Fin le ${e.recur.endDate}</span>`:''}
+      ${e.recurParentId?`<span style="font-size:11px;color:var(--tx3);margin-left:8px">Issue de ${(e.recurParentId||'').slice(-8)}</span>`:''}`;
+  }else rs.style.display='none';
+  renderSteps();renderAtList();renderCmList();
+  g('cm-input').value='';g('at-name').value='';g('at-url').value='';
+  ['ps-title','ps-owner','ps-input','ps-output','ps-tools','ps-blocks'].forEach(id=>g(id).value='');
+  g('det-edit').onclick=()=>{closeOv('ov-det');editEntry(id);};
+  g('det-del').onclick=()=>{if(confirm('Supprimer ?')){delEntry(id);closeOv('ov-det');}};
+  g('ov-det').classList.add('open');
+}
+
+function renderSteps(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const c=g('proc-steps');
+  if(!e.steps||!e.steps.length){c.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:4px 0 8px">Aucune étape définie.</div>';return;}
+  c.innerHTML=e.steps.map((s,i)=>`<div class="ps">
+    <button class="ps-del" onclick="delStep(${i})"><i class="ti ti-x"></i></button>
+    <div class="ps-num">Étape ${i+1}</div>
+    <div class="ps-title">${s.title}</div>
+    <div class="ps-meta">
+      ${s.owner?`<span><i class="ti ti-user" style="font-size:12px"></i>${s.owner}</span>`:''}
+      ${s.input?`<span><i class="ti ti-login" style="font-size:12px"></i>Input: ${s.input}</span>`:''}
+      ${s.output?`<span><i class="ti ti-logout" style="font-size:12px"></i>Output: ${s.output}</span>`:''}
+      ${s.tools?`<span><i class="ti ti-tool" style="font-size:12px"></i>${s.tools}</span>`:''}
+      ${s.blocks?`<span style="color:var(--red-tx)"><i class="ti ti-alert-triangle" style="font-size:12px"></i>${s.blocks}</span>`:''}
+    </div></div>`).join('');
+}
+
+async function addStep(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const title=g('ps-title').value.trim();if(!title)return alert('Titre de l\'étape obligatoire.');
+  if(!e.steps)e.steps=[];
+  e.steps.push({title,owner:g('ps-owner').value.trim(),input:g('ps-input').value.trim(),output:g('ps-output').value.trim(),tools:g('ps-tools').value.trim(),blocks:g('ps-blocks').value.trim()});
+  await save({steps:e.steps},e.id);
+  await addLog('Process',`Étape ajoutée : "${title}"`,curDetId);
+  ['ps-title','ps-owner','ps-input','ps-output','ps-tools','ps-blocks'].forEach(id=>g(id).value='');
+  renderSteps();showToast('✓ Étape ajoutée');
+}
+async function delStep(i){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  e.steps.splice(i,1);await save({steps:e.steps},e.id);renderSteps();
+}
+
+function renderAtList(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const c=g('at-list');
+  if(!e.attachments||!e.attachments.length){c.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:2px 0">Aucune pièce jointe.</div>';return;}
+  c.innerHTML=e.attachments.map((a,i)=>`<div class="at-item">
+    <i class="ti ti-paperclip"></i><span class="aname">${a.name}</span>
+    ${a.url?`<a href="${a.url}" target="_blank"><i class="ti ti-external-link"></i> Ouvrir</a>`:''}
+    <button class="btn btn-sm btn-d" onclick="delAttach(${i})"><i class="ti ti-trash"></i></button>
+  </div>`).join('');
+}
+async function addAttach(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const name=g('at-name').value.trim();if(!name)return alert('Donnez un nom.');
+  const url=g('at-url').value.trim();
+  if(!e.attachments)e.attachments=[];
+  e.attachments.push({name,url});
+  await save({attachments:e.attachments},e.id);
+  await addLog('PJ',`PJ : "${name}"`,curDetId);
+  g('at-name').value='';g('at-url').value='';renderAtList();
+}
+async function delAttach(i){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  e.attachments.splice(i,1);await save({attachments:e.attachments},e.id);renderAtList();
+}
+
+function renderCmList(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const c=g('cm-list');
+  if(!e.comments||!e.comments.length){c.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:2px 0">Aucun commentaire.</div>';return;}
+  c.innerHTML=[...e.comments].reverse().map(cm=>`<div class="cm-item">
+    <div class="cm-meta">${cm.ts}${cm.user?' · '+cm.user:''}</div>
+    <div class="cm-txt">${cm.text}</div>
+  </div>`).join('');
+  c.scrollTop=0;
+}
+async function addComment(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const txt=g('cm-input').value.trim();if(!txt)return;
+  if(!e.comments)e.comments=[];
+  e.comments.push({ts:nowStr(),text:txt,user:curUser?curUser.email:'?'});
+  await save({comments:e.comments},e.id);
+  await addLog('Commentaire',`Commentaire sur ${curDetId}`,curDetId);
+  g('cm-input').value='';renderCmList();
+}
+document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key==='Enter'&&document.activeElement===g('cm-input'))addComment();});
+
+// CRUD
+async function quickDone(id){
+  const e=entries.find(x=>x.id===id);if(!e||e.status==='done')return;
+  const upd={status:'done',pct:100,comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
+  await save(upd,id);
+  await addLog('Tâche',`Clôturé : "${e.title}"`,id);
+  if(e.recur&&e.recur.enabled){const nid=await spawnNext({...e,...upd});showToast(nid?`✓ Clôturé — Nouvelle occurrence créée`:'✓ Clôturé — Récurrence terminée.');}
+  else showToast('✓ Clôturé');
+}
+async function delEntry(id){
+  const e=entries.find(x=>x.id===id);await del(id);await addLog('Suppression',`Supprimé : "${e?e.title:'?'}"`,id);
+}
+async function delRef(id){
+  if(!confirm('Supprimer ?'))return;
+  const r=refs.find(x=>x.id===id);await db.collection('refs').doc(id).delete();refs=refs.filter(x=>x.id!==id);
+  await addLog('Suppression',`Référence supprimée : "${r?r.title:'?'}"`,id);renderRefs();
+}
+async function clearLog(){
+  if(!confirm('Effacer le journal ? Action irréversible.'))return;
+  const snap=await db.collection('logs').get();const batch=db.batch();snap.docs.forEach(d=>batch.delete(d.ref));await batch.commit();logs=[];renderAudit();
+}
+
+// MODALS
+function openNewModal(preset){
+  g('f-eid').value='';g('m-lbl').textContent='Nouvelle entrée';g('m-sub').textContent='';
+  ['f-title','f-ref','f-origin','f-desc','f-due','f-rec-end'].forEach(id=>{const el=g(id);if(el)el.value='';});
+  g('f-pct').value='0';g('f-stat').value='new';g('f-pri').value='med';g('f-type').value=preset||'task';
+  g('f-rec').checked=false;g('f-freq').value='weekly';g('f-days').value='14';g('f-assignee').value='';
+  g('rec-fields').style.display='none';g('grp-days').style.display='none';g('grp-weekday').style.display='block';
+  g('ov-new').classList.add('open');
+}
+function openRefModal(){g('ov-ref').classList.add('open');}
+function closeOv(id){g(id).classList.remove('open');}
+function ovClose(id,ev){if(ev.target===g(id))closeOv(id);}
+function toggleRec(){g('rec-fields').style.display=g('f-rec').checked?'block':'none';}
+function toggleFreqOpts(){const f=g('f-freq').value;g('grp-days').style.display=f==='custom'?'block':'none';g('grp-weekday').style.display=f==='weekly'?'block':'none';}
+function toggleFab(){fabOpen=!fabOpen;g('fab-menu').classList.toggle('open',fabOpen);g('fab-btn').innerHTML=fabOpen?'<i class="ti ti-x"></i>':'<i class="ti ti-plus"></i>';}
+function quickCreate(type){toggleFab();g('q-type').value=type;g('q-lbl').textContent=(TM[type]?TM[type].l:'Entrée')+' rapide';g('q-title').value='';g('q-due').value='';g('q-pri').value='med';g('q-assignee').value='';g('ov-quick').classList.add('open');}
+
+function editEntry(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  g('f-eid').value=id;g('m-lbl').textContent='Modifier';g('m-sub').textContent=id.slice(-8);
+  g('f-title').value=e.title||'';g('f-type').value=e.type||'task';g('f-cat').value=e.cat||'Autre';
+  g('f-pri').value=e.priority||'med';g('f-stat').value=e.status||'new';g('f-pct').value=e.pct||0;
+  g('f-due').value=e.due||'';g('f-ref').value=e.ref||'';g('f-origin').value=e.origin||'';g('f-desc').value=e.desc||'';g('f-assignee').value=e.assignee||'';
+  const r=e.recur||{};
+  g('f-rec').checked=!!r.enabled;g('f-freq').value=r.freq||'weekly';g('f-days').value=r.days||14;
+  g('f-rec-end').value=r.endDate||'';g('f-weekday').value=r.weekday!==undefined?r.weekday:1;
+  g('rec-fields').style.display=r.enabled?'block':'none';g('grp-days').style.display=r.freq==='custom'?'block':'none';g('grp-weekday').style.display=r.freq==='weekly'?'block':'none';
+  g('ov-new').classList.add('open');
+}
+
+async function saveEntry(){
+  const title=g('f-title').value.trim();if(!title)return alert('Le titre est obligatoire.');
+  const editId=g('f-eid').value,recurOn=g('f-rec').checked,freq=g('f-freq').value;
+  const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):undefined,endDate:g('f-rec-end').value}:{enabled:false};
+  const data={title,type:g('f-type').value,cat:g('f-cat').value,priority:g('f-pri').value,status:g('f-stat').value,pct:parseInt(g('f-pct').value)||0,due:g('f-due').value,ref:g('f-ref').value,origin:g('f-origin').value,desc:g('f-desc').value,assignee:g('f-assignee').value,recur};
+  if(editId){await save(data,editId);await addLog('Modification',`Mise à jour : "${title}"`,editId);}
+  else{const id=await save({...data,comments:[],attachments:[],steps:[]},null);await addLog('Tâche',`Création : "${title}"${recurOn?' ['+freqLbl(recur)+']':''}`,id);}
+  closeOv('ov-new');showToast('✓ Sauvegardé');
+}
+
+async function saveQuick(){
+  const title=g('q-title').value.trim();if(!title)return alert('Titre obligatoire.');
+  const data={title,type:g('q-type').value,cat:'Autre',priority:g('q-pri').value,status:'new',pct:0,due:g('q-due').value,assignee:g('q-assignee').value,ref:'',origin:'',desc:'',recur:{enabled:false},comments:[],attachments:[],steps:[]};
+  const id=await save(data,null);await addLog('Tâche',`Création rapide : "${title}"`,id);
+  closeOv('ov-quick');showToast('✓ Créé : '+title);
+}
+
+async function saveRef(){
+  const title=g('r-title').value.trim();if(!title)return alert('Titre obligatoire.');
+  const r={title,type:g('r-type').value,ver:g('r-ver').value,ref:g('r-ref').value,link:g('r-link').value,tags:g('r-tags').value,createdAt:new Date().toISOString()};
+  const ref=await db.collection('refs').add(r);refs.unshift({id:ref.id,...r});
+  await addLog('Document',`Référence : "${title}"`,ref.id);
+  closeOv('ov-ref');['r-title','r-ver','r-ref','r-link','r-tags'].forEach(id=>g(id).value='');
+  renderRefs();showToast('✓ Référence ajoutée');
+}
+
+// EXPORT
+function exportCSV(){
+  const h=['ID','Titre','Type','Catégorie','Statut','Priorité','Assigné à','Avancement','Échéance','Référence','Origine','Créé le','Récurrence','Nb Commentaires','Nb PJ','Nb Étapes'];
+  const rows=entries.map(e=>[e.id,e.title,e.type,e.cat,e.status,e.priority,collabName(e.assignee),e.pct||0,e.due||'',e.ref||'',e.origin||'',e.createdAt?e.createdAt.slice(0,10):'',e.recur&&e.recur.enabled?freqLbl(e.recur):'Non',(e.comments||[]).length,(e.attachments||[]).length,(e.steps||[]).length].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  dlFile('\uFEFF'+[h.join(','),...rows].join('\n'),'text/csv','ops_tracker_'+todayStr()+'.csv');
+  addLog('Export','Export CSV','—');
+}
+function exportJSON(){
+  dlFile(JSON.stringify({entries,refs,logs,exportedAt:nowStr()},null,2),'application/json','ops_tracker_backup_'+todayStr()+'.json');
+  addLog('Export','Sauvegarde JSON','—');
+}
+function dlFile(content,mime,filename){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:mime}));a.download=filename;a.click();}
+</script>
+</body>
+</html>
