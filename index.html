@@ -272,10 +272,37 @@ tr.od td{background:#FFFBF5}
         <div class="cc"><div class="cc-title">Taux complétion par collaborateur (%)</div><div class="cc-wrap"><canvas id="chart-completion"></canvas></div></div>
         <div class="cc"><div class="cc-title">Avancement tâches en cours</div><div id="progress-bars" style="padding-top:4px"></div></div>
       </div>
+
+      <div class="sdiv" style="margin-top:1.5rem"><i class="ti ti-chart-histogram" style="font-size:13px"></i>Analytics avancées</div>
+      <div class="info-box" style="background:var(--blu-bg);border-color:#BFDBFE;color:var(--blu-tx)"><i class="ti ti-info-circle"></i><div>Les métriques de délai (cycle, débit, SLA) s'appuient sur la date de clôture. Elle est enregistrée automatiquement à chaque nouvelle clôture, et reconstruite depuis le journal pour l'historique existant.</div></div>
+      <div class="kgrid" id="adv-kpis">
+        <div class="kpi"><div class="lbl"><i class="ti ti-clock"></i>Cycle médian</div><div class="val" id="a-cycle">—</div><div class="delta" id="a-cycle-d">jours création→clôture</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-arrow-bounce"></i>Débit 7j</div><div class="val" id="a-thr">—</div><div class="delta up">clôturées cette semaine</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-shield-check"></i>SLA respecté</div><div class="val" id="a-sla">—</div><div class="delta" id="a-sla-d">sur clôturées</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-repeat"></i>Récurrence à temps</div><div class="val" id="a-recpunc">—</div><div class="delta">occurrences clôturées</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-hourglass-high"></i>WIP âgé >14j</div><div class="val" id="a-stale">—</div><div class="delta warn">en cours anciennes</div></div>
+        <div class="kpi"><div class="lbl"><i class="ti ti-scale"></i>Charge max</div><div class="val" id="a-load">—</div><div class="delta" id="a-load-d">du plus chargé</div></div>
+      </div>
+      <div class="cgrid" style="grid-template-columns:1fr">
+        <div class="cc"><div class="cc-title">Débit hebdomadaire — créées vs clôturées (8 sem.)</div><div class="cc-wrap" style="height:220px"><canvas id="chart-throughput"></canvas></div></div>
+      </div>
+      <div class="cgrid">
+        <div class="cc"><div class="cc-title">Cycle médian par catégorie (jours)</div><div class="cc-wrap"><canvas id="chart-cycle"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Ancienneté du WIP (en cours / révision)</div><div class="cc-wrap"><canvas id="chart-aging"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Ancienneté des retards</div><div class="cc-wrap"><canvas id="chart-odage"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Respect du SLA par catégorie (%)</div><div class="cc-wrap"><canvas id="chart-sla"></canvas></div></div>
+      </div>
+      <div class="cc" style="margin-bottom:1.25rem">
+        <div class="cc-title">Concentration catégorie × statut</div>
+        <div id="heatmap" style="overflow-x:auto"></div>
+      </div>
     </div>
 
     <div id="tab-tasks" style="display:none">
-      <div class="sbar"><i class="ti ti-search"></i><input type="text" id="task-search" placeholder="Rechercher…" oninput="renderTasks()"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <div class="sbar" style="flex:1;margin:0"><i class="ti ti-search"></i><input type="text" id="task-search" placeholder="Rechercher…" oninput="renderTasks()"></div>
+        <button class="btn btn-sm" id="mine-toggle" onclick="toggleMine()" title="Filtrer sur mes tâches"><i class="ti ti-user"></i> Mes tâches</button>
+      </div>
       <div class="fbar" id="task-fbar">
         <button class="chip on" onclick="setFilter('task','all',this)">Toutes</button>
         <button class="chip" onclick="setFilter('task','new',this)">Nouveau</button>
@@ -538,11 +565,12 @@ const COLLABS=[
   {id:'c1',name:'Oumayma Ben Rouha',role:'Back Office',email:'o.benrouha@viamobile.tn',initials:'OB'},
 ];
 
-let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null;
+let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null,onlyMine=false;
 
 const todayStr=()=>new Date().toISOString().slice(0,10);
 const nowStr=()=>new Date().toLocaleString('fr-FR');
-const trunc=(s,n)=>s&&s.length>n?s.slice(0,n)+'…':s||'';
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const trunc=(s,n)=>{const t=s&&s.length>n?s.slice(0,n)+'…':(s||'');return esc(t);};
 const g=id=>document.getElementById(id);
 const bdg=(map,key)=>{const m=map[key]||{l:key,c:'b-new'};return`<span class="badge ${m.c}">${m.l}</span>`;};
 const daysDiff=due=>{if(!due)return null;const d=new Date(due),t=new Date();t.setHours(0,0,0,0);return Math.floor((d-t)/86400000);};
@@ -578,6 +606,30 @@ function recBadge(e){if(!e.recur||!e.recur.enabled)return'';return`<span class="
 function collabName(id){if(!id)return'—';const c=COLLABS.find(x=>x.id===id);return c?c.name:'—';}
 function collabAv(id,sz=22){const i=COLLABS.findIndex(x=>x.id===id);const c=COLLABS[i];if(!c)return'';const col=AVC[i%AVC.length];return`<span class="avatar" style="width:${sz}px;height:${sz}px;background:${col};font-size:${Math.floor(sz*.38)}px" title="${c.name}">${c.initials}</span>`;}
 function showToast(msg){const t=g('toast');g('toast-msg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+// ANALYTICS HELPERS
+const SLA_DAYS={'Réclamation':5,'KYC / Onboarding':7,'Conformité / AML':10,'Réglementaire':15,'Reporting':7,'Partenaire':10,'Opérations':7,'Technique':10,'Autre':14};
+function slaFor(e){return SLA_DAYS[e.cat]!=null?SLA_DAYS[e.cat]:14;}
+function parseFrTs(ts){if(!ts)return null;const m=String(ts).match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?new Date(+m[3],+m[2]-1,+m[1]):null;}
+let _logDoneCache=null,_logDoneLen=-1;
+function logDoneMap(){
+  if(_logDoneCache&&_logDoneLen===logs.length)return _logDoneCache;
+  const m={};
+  logs.forEach(l=>{if(l.ref&&l.action&&/^Clôtur/i.test(l.action)){const d=parseFrTs(l.ts);if(d&&(!m[l.ref]||d<m[l.ref]))m[l.ref]=d;}});
+  _logDoneCache=m;_logDoneLen=logs.length;return m;
+}
+function cmpDateObj(e){
+  if(e.completedAt)return new Date(e.completedAt);
+  if(e.status==='done'){const lm=logDoneMap();if(lm[e.id])return lm[e.id];if(e.updatedAt)return new Date(e.updatedAt);}
+  return null;
+}
+function cmpDate(e){const d=cmpDateObj(e);return d?d.toISOString().slice(0,10):'';}
+function cycleDays(e){const c=cmpDateObj(e);if(!c||!e.createdAt)return null;const n=Math.round((c-new Date(e.createdAt))/86400000);return n<0?0:n;}
+function ageDays(e){if(!e.createdAt)return null;return Math.floor((Date.now()-new Date(e.createdAt))/86400000);}
+function median(arr){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2);}
+function weekStart(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;}
+function weekKey(d){return weekStart(d).toISOString().slice(0,10);}
+function slaMet(e){const c=cycleDays(e);return c==null?null:c<=slaFor(e);}
 
 // AUTH
 auth.onAuthStateChanged(user=>{
@@ -628,7 +680,7 @@ function subscribeEntries(){
     render();updateBadges();updateAlertBanner();
   },err=>showToast('Erreur Firebase: '+err.message));
 }
-async function save(data,id){if(id){await db.collection('entries').doc(id).set(data,{merge:true});}else{const r=await db.collection('entries').add({...data,createdAt:new Date().toISOString()});return r.id;}}
+async function save(data,id){const now=new Date().toISOString();if(id){await db.collection('entries').doc(id).set({...data,updatedAt:now},{merge:true});}else{const r=await db.collection('entries').add({...data,createdAt:now,updatedAt:now});return r.id;}}
 async function del(id){await db.collection('entries').doc(id).delete();}
 async function loadRefs(){const s=await db.collection('refs').orderBy('createdAt','desc').get();refs=s.docs.map(d=>({id:d.id,...d.data()}));if(curTab==='refs')renderRefs();}
 async function loadLogs(){const s=await db.collection('logs').orderBy('ts','desc').limit(200).get();logs=s.docs.map(d=>({id:d.id,...d.data()}));if(curTab==='audit')renderAudit();}
@@ -677,6 +729,8 @@ function setFilter(which,val,el){
   el.classList.add('on');
   if(which==='task')renderTasks();else renderReqs();
 }
+function myCollabId(){const c=COLLABS.find(x=>curUser&&x.email===curUser.email);return c?c.id:null;}
+function toggleMine(){onlyMine=!onlyMine;g('mine-toggle').classList.toggle('btn-p',onlyMine);renderTasks();}
 
 function render(){
   renderKPIs();
@@ -706,7 +760,7 @@ function renderDashboard(){
   if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty"><i class="ti ti-inbox"></i>Aucune entrée.</td></tr>';return;}
   tb.innerHTML=list.map(e=>{const od=isOverdue(e);return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
-    <td title="${e.title}">${trunc(e.title,24)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">RETARD</span>':''}${recBadge(e)}</td>
+    <td title="${esc(e.title)}">${trunc(e.title,24)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">RETARD</span>':''}${recBadge(e)}</td>
     <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),11)}</span></td>
     <td><span class="tag">${e.cat||'—'}</span></td>${dueCell(e)}<td>${pbar(e.pct,od)}</td></tr>`;}).join('');
@@ -715,6 +769,7 @@ function renderDashboard(){
 function renderTasks(){
   const q=(g('task-search').value||'').toLowerCase();
   let list=entries.filter(e=>e.type==='task');
+  if(onlyMine){const mid=myCollabId();list=list.filter(e=>e.assignee===mid);}
   if(filters.task!=='all')list=list.filter(e=>e.status===filters.task);
   if(q)list=list.filter(e=>(e.title+e.ref+e.cat+collabName(e.assignee)).toLowerCase().includes(q));
   list.sort((a,b)=>isOverdue(a)&&!isOverdue(b)?-1:!isOverdue(a)&&isOverdue(b)?1:0);
@@ -722,7 +777,7 @@ function renderTasks(){
   if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune tâche.</td></tr>';return;}
   tb.innerHTML=list.map(e=>{const od=isOverdue(e),nc=(e.comments||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
-    <td title="${e.title}">${trunc(e.title,20)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}${recBadge(e)}</td>
+    <td title="${esc(e.title)}">${trunc(e.title,20)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}${recBadge(e)}</td>
     <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
     <td><span class="tag">${e.cat||'—'}</span></td>${dueCell(e)}
@@ -740,7 +795,7 @@ function renderReqs(){
   if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune demande.</td></tr>';return;}
   tb.innerHTML=list.map(e=>{const od=isOverdue(e),nc=(e.comments||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
-    <td title="${e.title}">${trunc(e.title,18)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}</td>
+    <td title="${esc(e.title)}">${trunc(e.title,18)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}</td>
     <td>${bdg(TM,e.type)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
     <td style="font-size:11px;color:var(--tx2)">${trunc(e.origin,12)||'—'}</td>
@@ -831,14 +886,14 @@ function renderRefs(){
     <div class="ico"><i class="ti ti-file-text"></i></div>
     <div style="flex:1">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:13px;font-weight:600;color:var(--tx)">${r.title}</span>
-        <span class="badge b-rev" style="font-size:9px">${r.type}</span>
-        ${r.ver?`<span class="tag">${r.ver}</span>`:''}
+        <span style="font-size:13px;font-weight:600;color:var(--tx)">${esc(r.title)}</span>
+        <span class="badge b-rev" style="font-size:9px">${esc(r.type)}</span>
+        ${r.ver?`<span class="tag">${esc(r.ver)}</span>`:''}
       </div>
-      ${r.ref?`<div style="font-size:11px;color:var(--tx2);margin-top:3px;font-family:'DM Mono',monospace">Réf. : ${r.ref}</div>`:''}
-      ${r.tags?`<div style="margin-top:5px">${r.tags.split(',').map(t=>`<span class="tag">${t.trim()}</span>`).join('')}</div>`:''}
+      ${r.ref?`<div style="font-size:11px;color:var(--tx2);margin-top:3px;font-family:'DM Mono',monospace">Réf. : ${esc(r.ref)}</div>`:''}
+      ${r.tags?`<div style="margin-top:5px">${r.tags.split(',').map(t=>`<span class="tag">${esc(t.trim())}</span>`).join('')}</div>`:''}
     </div>
-    ${r.link?`<a href="${r.link}" target="_blank" style="font-size:12px;color:var(--pur);flex-shrink:0;padding:4px"><i class="ti ti-external-link"></i></a>`:''}
+    ${r.link?`<a href="${esc(r.link)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--pur);flex-shrink:0;padding:4px"><i class="ti ti-external-link"></i></a>`:''}
     <button class="btn btn-sm btn-d" onclick="delRef('${r.id}')" style="flex-shrink:0"><i class="ti ti-trash"></i></button>
   </div>`).join('');
 }
@@ -854,10 +909,10 @@ function renderAudit(){
   const c=g('log-wrap');
   if(!logs.length){c.innerHTML='<div class="empty">Journal vide.</div>';return;}
   c.innerHTML=logs.slice(0,100).map(l=>`<div class="lg-row">
-    <span class="lg-ts">${l.ts}</span>
-    <span style="flex-shrink:0;width:80px"><span class="badge b-rev" style="font-size:9px">${l.type}</span></span>
-    <span class="lg-act">${l.action}${l.user?` <span style="color:var(--tx3);font-size:10px">(${l.user})</span>`:''}</span>
-    <span class="lg-ref">${l.ref||''}</span>
+    <span class="lg-ts">${esc(l.ts)}</span>
+    <span style="flex-shrink:0;width:80px"><span class="badge b-rev" style="font-size:9px">${esc(l.type)}</span></span>
+    <span class="lg-act">${esc(l.action)}${l.user?` <span style="color:var(--tx3);font-size:10px">(${esc(l.user)})</span>`:''}</span>
+    <span class="lg-ref">${esc(l.ref)||''}</span>
   </div>`).join('');
 }
 
@@ -883,10 +938,78 @@ function renderStats(){
   const wip=tasks.filter(t=>t.status==='wip').slice(0,8);
   g('progress-bars').innerHTML=wip.length?wip.map(e=>`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="width:110px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${e.title}</div>
+      <div style="width:110px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${esc(e.title)}</div>
       <div style="flex:1;background:var(--surf2);border-radius:20px;height:7px;overflow:hidden"><div style="height:7px;border-radius:20px;background:var(--pur);width:${e.pct||0}%"></div></div>
       <span style="font-size:10px;color:var(--tx2);width:28px;text-align:right;font-family:'DM Mono',monospace;flex-shrink:0">${e.pct||0}%</span>
     </div>`).join(''):'<div class="empty" style="padding:1rem">Aucune tâche en cours.</div>';
+  renderAdvanced();
+}
+
+function renderAdvanced(){
+  const done=entries.filter(e=>cmpDateObj(e));
+  const cyc=done.map(e=>cycleDays(e)).filter(v=>v!=null);
+  g('a-cycle').textContent=cyc.length?median(cyc):'—';
+  g('a-cycle-d').textContent=cyc.length?`méd. · ${cyc.length} clôturées`:'pas encore de données';
+  const wkNow=weekKey(new Date());
+  g('a-thr').textContent=done.filter(e=>weekKey(cmpDateObj(e))===wkNow).length;
+  const met=done.map(e=>slaMet(e)).filter(v=>v!=null),okc=met.filter(Boolean).length;
+  const slaEl=g('a-sla');
+  slaEl.textContent=met.length?Math.round(okc/met.length*100)+'%':'—';
+  g('a-sla-d').textContent=met.length?`${okc}/${met.length} dans les délais`:'—';
+  slaEl.style.color=met.length?(okc/met.length>=.8?'var(--grn-tx)':okc/met.length>=.5?'#C2410C':'var(--red-tx)'):'';
+  g('a-stale').textContent=entries.filter(e=>(e.status==='wip'||e.status==='review')&&(ageDays(e)||0)>14).length;
+  const open=COLLABS.map(c=>entries.filter(e=>e.assignee===c.id&&e.status!=='done').length);
+  const tot=open.reduce((a,b)=>a+b,0),mx=Math.max(0,...open),mxc=COLLABS[open.indexOf(mx)];
+  g('a-load').textContent=tot?Math.round(mx/tot*100)+'%':'—';
+  g('a-load-d').textContent=tot&&mxc?`${mxc.name.split(' ')[0]} · ${mx} ouvertes`:'aucune tâche ouverte';
+  db.collection('recurHist').orderBy('closedAt','desc').limit(100).get().then(snap=>{
+    const h=snap.docs.map(d=>d.data()).filter(x=>x.parentDue&&x.closedAt);
+    g('a-recpunc').textContent=h.length?Math.round(h.filter(x=>x.closedAt<=x.parentDue).length/h.length*100)+'%':'—';
+  }).catch(()=>{g('a-recpunc').textContent='—';});
+
+  const mk=(id,cfg)=>{if(charts[id]){charts[id].destroy();delete charts[id];}const ctx=g(id);if(ctx)charts[id]=new Chart(ctx,cfg);};
+  const F={family:'DM Sans',size:10},axis=()=>({x:{ticks:{font:F}},y:{beginAtZero:true,ticks:{stepSize:1,font:F}}});
+
+  const weeks=[],w0=weekStart(new Date());for(let i=7;i>=0;i--){const d=new Date(w0);d.setDate(d.getDate()-i*7);weeks.push(weekKey(d));}
+  const cW={},dW={};
+  entries.forEach(e=>{if(e.createdAt){const k=weekKey(new Date(e.createdAt));cW[k]=(cW[k]||0)+1;}});
+  done.forEach(e=>{const k=weekKey(cmpDateObj(e));dW[k]=(dW[k]||0)+1;});
+  const wl=weeks.map(k=>{const d=new Date(k);return d.getDate()+'/'+(d.getMonth()+1);});
+  mk('chart-throughput',{type:'bar',data:{labels:wl,datasets:[
+    {label:'Créées',data:weeks.map(k=>cW[k]||0),backgroundColor:'#C7D2FE',borderRadius:4},
+    {label:'Clôturées',data:weeks.map(k=>dW[k]||0),backgroundColor:'#4F46B8',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:F,boxWidth:10}}},scales:axis()}});
+
+  const cats=[...new Set(done.map(e=>e.cat).filter(Boolean))];
+  mk('chart-cycle',{type:'bar',data:{labels:cats.length?cats:['—'],datasets:[{data:cats.length?cats.map(c=>median(done.filter(e=>e.cat===c).map(e=>cycleDays(e)).filter(v=>v!=null))):[0],backgroundColor:'#0891B2',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{font:F}},y:{ticks:{font:F}}}}});
+
+  const ab=[0,0,0,0];entries.filter(e=>e.status==='wip'||e.status==='review').forEach(e=>{const a=ageDays(e)||0;if(a<=3)ab[0]++;else if(a<=7)ab[1]++;else if(a<=14)ab[2]++;else ab[3]++;});
+  mk('chart-aging',{type:'bar',data:{labels:['0–3j','4–7j','8–14j','15j+'],datasets:[{data:ab,backgroundColor:['#BBF7D0','#FDE68A','#FDBA74','#FECACA'],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:axis()}});
+
+  const ob=[0,0,0,0];entries.filter(e=>isOverdue(e)).forEach(e=>{const d=Math.abs(daysDiff(e.due));if(d<=7)ob[0]++;else if(d<=14)ob[1]++;else if(d<=30)ob[2]++;else ob[3]++;});
+  mk('chart-odage',{type:'bar',data:{labels:['1–7j','8–14j','15–30j','30j+'],datasets:[{data:ob,backgroundColor:['#FDE68A','#FDBA74','#FB923C','#DC2626'],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:axis()}});
+
+  const scats=[...new Set(done.filter(e=>slaMet(e)!=null).map(e=>e.cat).filter(Boolean))];
+  const slaVals=scats.map(c=>{const arr=done.filter(e=>e.cat===c&&slaMet(e)!=null);return arr.length?Math.round(arr.filter(e=>slaMet(e)).length/arr.length*100):0;});
+  mk('chart-sla',{type:'bar',data:{labels:scats.length?scats:['—'],datasets:[{data:scats.length?slaVals:[0],backgroundColor:scats.length?slaVals.map(v=>v>=80?'#16A34A':v>=50?'#D97706':'#DC2626'):['#E0DDD6'],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:100,ticks:{font:F,callback:v=>v+'%'}},y:{ticks:{font:F}}}}});
+
+  renderHeatmap();
+}
+
+function renderHeatmap(){
+  const statuses=[['new','Nouveau'],['wip','En cours'],['review','Révision'],['blocked','Bloqué'],['done','Terminé']];
+  const cats=[...new Set(entries.map(e=>e.cat).filter(Boolean))];
+  const hm=g('heatmap');if(!hm)return;
+  if(!cats.length){hm.innerHTML='<div class="empty" style="padding:1rem">Aucune donnée.</div>';return;}
+  let max=0;const grid={};
+  cats.forEach(c=>{grid[c]={};statuses.forEach(([s])=>{const n=entries.filter(e=>e.cat===c&&e.status===s).length;grid[c][s]=n;if(n>max)max=n;});});
+  const cell=n=>{const t=max?n/max:0,bg=n===0?'var(--surf2)':`rgba(79,70,184,${(0.12+t*0.78).toFixed(2)})`,col=t>0.5?'#fff':'var(--tx)';return`<td style="text-align:center;background:${bg};color:${col};font-family:'DM Mono',monospace;font-weight:500">${n||''}</td>`;};
+  hm.innerHTML=`<table style="min-width:520px"><thead><tr><th>Catégorie</th>${statuses.map(([,l])=>`<th style="text-align:center">${l}</th>`).join('')}</tr></thead>
+    <tbody>${cats.map(c=>`<tr><td style="font-weight:500;white-space:nowrap">${esc(c)}</td>${statuses.map(([s])=>cell(grid[c][s])).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
 // RAPPORT
@@ -955,9 +1078,9 @@ function openDetail(id){
     <div class="dc"><div class="dk">Avancement</div><div class="dv">${pbar(e.pct,od)} <span style="font-size:12px;margin-left:5px">${e.pct||0}%</span></div></div>
     <div class="dc"><div class="dk">Assigné à</div><div class="dv">${collabAv(e.assignee,18)} <span style="font-size:12px;margin-left:4px">${collabName(e.assignee)}</span></div></div>
     <div class="dc"><div class="dk">Échéance</div><div class="dv">${e.due?(e.due+(od?' <span class="badge b-od" style="font-size:9px">RETARD</span>':'')):'—'}</div></div>
-    <div class="dc"><div class="dk">N° Référence</div><div class="dv" style="font-family:'DM Mono',monospace;font-size:11px">${e.ref||'—'}</div></div>
-    <div class="dc"><div class="dk">Origine</div><div class="dv">${e.origin||'—'}</div></div>
-    <div class="dc full"><div class="dk">Description</div><div class="dv" style="white-space:pre-wrap">${e.desc||'—'}</div></div>
+    <div class="dc"><div class="dk">N° Référence</div><div class="dv" style="font-family:'DM Mono',monospace;font-size:11px">${esc(e.ref)||'—'}</div></div>
+    <div class="dc"><div class="dk">Origine</div><div class="dv">${esc(e.origin)||'—'}</div></div>
+    <div class="dc full"><div class="dk">Description</div><div class="dv" style="white-space:pre-wrap">${esc(e.desc)||'—'}</div></div>
   </div>`;
   const rs=g('det-recur'),ri=g('det-recur-info');
   if(e.recur&&e.recur.enabled){
@@ -981,13 +1104,13 @@ function renderSteps(){
   c.innerHTML=e.steps.map((s,i)=>`<div class="ps">
     <button class="ps-del" onclick="delStep(${i})"><i class="ti ti-x"></i></button>
     <div class="ps-num">Étape ${i+1}</div>
-    <div class="ps-title">${s.title}</div>
+    <div class="ps-title">${esc(s.title)}</div>
     <div class="ps-meta">
-      ${s.owner?`<span><i class="ti ti-user" style="font-size:12px"></i>${s.owner}</span>`:''}
-      ${s.input?`<span><i class="ti ti-login" style="font-size:12px"></i>Input: ${s.input}</span>`:''}
-      ${s.output?`<span><i class="ti ti-logout" style="font-size:12px"></i>Output: ${s.output}</span>`:''}
-      ${s.tools?`<span><i class="ti ti-tool" style="font-size:12px"></i>${s.tools}</span>`:''}
-      ${s.blocks?`<span style="color:var(--red-tx)"><i class="ti ti-alert-triangle" style="font-size:12px"></i>${s.blocks}</span>`:''}
+      ${s.owner?`<span><i class="ti ti-user" style="font-size:12px"></i>${esc(s.owner)}</span>`:''}
+      ${s.input?`<span><i class="ti ti-login" style="font-size:12px"></i>Input: ${esc(s.input)}</span>`:''}
+      ${s.output?`<span><i class="ti ti-logout" style="font-size:12px"></i>Output: ${esc(s.output)}</span>`:''}
+      ${s.tools?`<span><i class="ti ti-tool" style="font-size:12px"></i>${esc(s.tools)}</span>`:''}
+      ${s.blocks?`<span style="color:var(--red-tx)"><i class="ti ti-alert-triangle" style="font-size:12px"></i>${esc(s.blocks)}</span>`:''}
     </div></div>`).join('');
 }
 
@@ -1011,8 +1134,8 @@ function renderAtList(){
   const c=g('at-list');
   if(!e.attachments||!e.attachments.length){c.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:2px 0">Aucune pièce jointe.</div>';return;}
   c.innerHTML=e.attachments.map((a,i)=>`<div class="at-item">
-    <i class="ti ti-paperclip"></i><span class="aname">${a.name}</span>
-    ${a.url?`<a href="${a.url}" target="_blank"><i class="ti ti-external-link"></i> Ouvrir</a>`:''}
+    <i class="ti ti-paperclip"></i><span class="aname">${esc(a.name)}</span>
+    ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Ouvrir</a>`:''}
     <button class="btn btn-sm btn-d" onclick="delAttach(${i})"><i class="ti ti-trash"></i></button>
   </div>`).join('');
 }
@@ -1036,8 +1159,8 @@ function renderCmList(){
   const c=g('cm-list');
   if(!e.comments||!e.comments.length){c.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:2px 0">Aucun commentaire.</div>';return;}
   c.innerHTML=[...e.comments].reverse().map(cm=>`<div class="cm-item">
-    <div class="cm-meta">${cm.ts}${cm.user?' · '+cm.user:''}</div>
-    <div class="cm-txt">${cm.text}</div>
+    <div class="cm-meta">${esc(cm.ts)}${cm.user?' · '+esc(cm.user):''}</div>
+    <div class="cm-txt">${esc(cm.text)}</div>
   </div>`).join('');
   c.scrollTop=0;
 }
@@ -1055,7 +1178,7 @@ document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key==='
 // CRUD
 async function quickDone(id){
   const e=entries.find(x=>x.id===id);if(!e||e.status==='done')return;
-  const upd={status:'done',pct:100,comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
+  const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
   await save(upd,id);
   await addLog('Tâche',`Clôturé : "${e.title}"`,id);
   if(e.recur&&e.recur.enabled){const nid=await spawnNext({...e,...upd});showToast(nid?`✓ Clôturé — Nouvelle occurrence créée`:'✓ Clôturé — Récurrence terminée.');}
@@ -1109,6 +1232,7 @@ async function saveEntry(){
   const editId=g('f-eid').value,recurOn=g('f-rec').checked,freq=g('f-freq').value;
   const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):undefined,endDate:g('f-rec-end').value}:{enabled:false};
   const data={title,type:g('f-type').value,cat:g('f-cat').value,priority:g('f-pri').value,status:g('f-stat').value,pct:parseInt(g('f-pct').value)||0,due:g('f-due').value,ref:g('f-ref').value,origin:g('f-origin').value,desc:g('f-desc').value,assignee:g('f-assignee').value,recur};
+  if(data.status==='done'){const prev=editId?entries.find(x=>x.id===editId):null;data.completedAt=(prev&&prev.completedAt)?prev.completedAt:new Date().toISOString();}else{data.completedAt='';}
   if(editId){await save(data,editId);await addLog('Modification',`Mise à jour : "${title}"`,editId);}
   else{const id=await save({...data,comments:[],attachments:[],steps:[]},null);await addLog('Tâche',`Création : "${title}"${recurOn?' ['+freqLbl(recur)+']':''}`,id);}
   closeOv('ov-new');showToast('✓ Sauvegardé');
@@ -1132,8 +1256,8 @@ async function saveRef(){
 
 // EXPORT
 function exportCSV(){
-  const h=['ID','Titre','Type','Catégorie','Statut','Priorité','Assigné à','Avancement','Échéance','Référence','Origine','Créé le','Récurrence','Nb Commentaires','Nb PJ','Nb Étapes'];
-  const rows=entries.map(e=>[e.id,e.title,e.type,e.cat,e.status,e.priority,collabName(e.assignee),e.pct||0,e.due||'',e.ref||'',e.origin||'',e.createdAt?e.createdAt.slice(0,10):'',e.recur&&e.recur.enabled?freqLbl(e.recur):'Non',(e.comments||[]).length,(e.attachments||[]).length,(e.steps||[]).length].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const h=['ID','Titre','Type','Catégorie','Statut','Priorité','Assigné à','Avancement','Échéance','Référence','Origine','Créé le','Clôturé le','Cycle (j)','Récurrence','Nb Commentaires','Nb PJ','Nb Étapes'];
+  const rows=entries.map(e=>[e.id,e.title,e.type,e.cat,e.status,e.priority,collabName(e.assignee),e.pct||0,e.due||'',e.ref||'',e.origin||'',e.createdAt?e.createdAt.slice(0,10):'',cmpDate(e)||'',cycleDays(e)==null?'':cycleDays(e),e.recur&&e.recur.enabled?freqLbl(e.recur):'Non',(e.comments||[]).length,(e.attachments||[]).length,(e.steps||[]).length].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   dlFile('\uFEFF'+[h.join(','),...rows].join('\n'),'text/csv','ops_tracker_'+todayStr()+'.csv');
   addLog('Export','Export CSV','—');
 }
