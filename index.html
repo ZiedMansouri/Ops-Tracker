@@ -680,7 +680,8 @@ function subscribeEntries(){
     render();updateBadges();updateAlertBanner();
   },err=>showToast('Erreur Firebase: '+err.message));
 }
-async function save(data,id){const now=new Date().toISOString();if(id){await db.collection('entries').doc(id).set({...data,updatedAt:now},{merge:true});}else{const r=await db.collection('entries').add({...data,createdAt:now,updatedAt:now});return r.id;}}
+function clean(o){if(Array.isArray(o))return o.map(clean);if(o&&typeof o==='object'){const r={};for(const k in o){if(o[k]!==undefined)r[k]=clean(o[k]);}return r;}return o;}
+async function save(data,id){const now=new Date().toISOString();data=clean(data);if(id){await db.collection('entries').doc(id).set({...data,updatedAt:now},{merge:true});}else{const r=await db.collection('entries').add({...data,createdAt:now,updatedAt:now});return r.id;}}
 async function del(id){await db.collection('entries').doc(id).delete();}
 async function loadRefs(){const s=await db.collection('refs').orderBy('createdAt','desc').get();refs=s.docs.map(d=>({id:d.id,...d.data()}));if(curTab==='refs')renderRefs();}
 async function loadLogs(){const s=await db.collection('logs').orderBy('ts','desc').limit(200).get();logs=s.docs.map(d=>({id:d.id,...d.data()}));if(curTab==='audit')renderAudit();}
@@ -1230,28 +1231,30 @@ function editEntry(id){
 async function saveEntry(){
   const title=g('f-title').value.trim();if(!title)return alert('Le titre est obligatoire.');
   const editId=g('f-eid').value,recurOn=g('f-rec').checked,freq=g('f-freq').value;
-  const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):undefined,endDate:g('f-rec-end').value}:{enabled:false};
+  const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):null,endDate:g('f-rec-end').value||''}:{enabled:false};
   const data={title,type:g('f-type').value,cat:g('f-cat').value,priority:g('f-pri').value,status:g('f-stat').value,pct:parseInt(g('f-pct').value)||0,due:g('f-due').value,ref:g('f-ref').value,origin:g('f-origin').value,desc:g('f-desc').value,assignee:g('f-assignee').value,recur};
   if(data.status==='done'){const prev=editId?entries.find(x=>x.id===editId):null;data.completedAt=(prev&&prev.completedAt)?prev.completedAt:new Date().toISOString();}else{data.completedAt='';}
-  if(editId){await save(data,editId);await addLog('Modification',`Mise à jour : "${title}"`,editId);}
-  else{const id=await save({...data,comments:[],attachments:[],steps:[]},null);await addLog('Tâche',`Création : "${title}"${recurOn?' ['+freqLbl(recur)+']':''}`,id);}
-  closeOv('ov-new');showToast('✓ Sauvegardé');
+  try{
+    if(editId){await save(data,editId);await addLog('Modification',`Mise à jour : "${title}"`,editId);}
+    else{const id=await save({...data,comments:[],attachments:[],steps:[]},null);await addLog('Tâche',`Création : "${title}"${recurOn?' ['+freqLbl(recur)+']':''}`,id);}
+    closeOv('ov-new');showToast('✓ Sauvegardé');
+  }catch(err){alert('Échec de l\'enregistrement : '+(err&&err.message?err.message:err));}
 }
 
 async function saveQuick(){
   const title=g('q-title').value.trim();if(!title)return alert('Titre obligatoire.');
   const data={title,type:g('q-type').value,cat:'Autre',priority:g('q-pri').value,status:'new',pct:0,due:g('q-due').value,assignee:g('q-assignee').value,ref:'',origin:'',desc:'',recur:{enabled:false},comments:[],attachments:[],steps:[]};
-  const id=await save(data,null);await addLog('Tâche',`Création rapide : "${title}"`,id);
-  closeOv('ov-quick');showToast('✓ Créé : '+title);
+  try{const id=await save(data,null);await addLog('Tâche',`Création rapide : "${title}"`,id);
+  closeOv('ov-quick');showToast('✓ Créé : '+title);}catch(err){alert('Échec de l\'enregistrement : '+(err&&err.message?err.message:err));}
 }
 
 async function saveRef(){
   const title=g('r-title').value.trim();if(!title)return alert('Titre obligatoire.');
   const r={title,type:g('r-type').value,ver:g('r-ver').value,ref:g('r-ref').value,link:g('r-link').value,tags:g('r-tags').value,createdAt:new Date().toISOString()};
-  const ref=await db.collection('refs').add(r);refs.unshift({id:ref.id,...r});
+  try{const ref=await db.collection('refs').add(r);refs.unshift({id:ref.id,...r});
   await addLog('Document',`Référence : "${title}"`,ref.id);
   closeOv('ov-ref');['r-title','r-ver','r-ref','r-link','r-tags'].forEach(id=>g(id).value='');
-  renderRefs();showToast('✓ Référence ajoutée');
+  renderRefs();showToast('✓ Référence ajoutée');}catch(err){alert('Échec de l\'enregistrement : '+(err&&err.message?err.message:err));}
 }
 
 // EXPORT
