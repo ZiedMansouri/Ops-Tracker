@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -211,6 +212,7 @@ tr.od td{background:#FFFBF5}
     <button class="nav on" onclick="goTab('dashboard',this)"><i class="ti ti-layout-dashboard"></i>Tableau de bord</button>
     <button class="nav" onclick="goTab('stats',this)"><i class="ti ti-chart-bar"></i>Statistiques</button>
     <button class="nav" onclick="goTab('tasks',this)"><i class="ti ti-checkbox"></i>Tâches <span class="nb" id="nb-tasks">0</span></button>
+    <button class="nav" onclick="goTab('completed',this)"><i class="ti ti-checks"></i>Tâches terminées <span class="nb" id="nb-completed">0</span></button>
     <button class="nav" onclick="goTab('requests',this)"><i class="ti ti-messages"></i>Demandes <span class="nb" id="nb-reqs">0</span></button>
     <button class="nav" onclick="goTab('recurring',this)"><i class="ti ti-repeat"></i>Récurrentes <span class="nb" id="nb-recur">0</span></button>
     <button class="nav" onclick="goTab('collabs',this)"><i class="ti ti-users"></i>Collaborateurs</button>
@@ -238,7 +240,8 @@ tr.od td{background:#FFFBF5}
   <div class="topbar">
     <div class="pg-title" id="page-title">Tableau de bord</div>
     <div class="tb-acts">
-      <button class="btn btn-sm" onclick="exportCSV()"><i class="ti ti-table-export"></i> Export CSV</button>
+      <button class="btn btn-sm" onclick="exportCSV()"><i class="ti ti-table-export"></i> CSV</button>
+      <button class="btn btn-sm" onclick="exportXLSX()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
       <button class="btn btn-sm" onclick="exportJSON()"><i class="ti ti-download"></i> JSON</button>
       <button class="btn btn-p" onclick="openNewModal()"><i class="ti ti-plus"></i> Nouvelle entrée</button>
     </div>
@@ -299,9 +302,9 @@ tr.od td{background:#FFFBF5}
     </div>
 
     <div id="tab-tasks" style="display:none">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-        <div class="sbar" style="flex:1;margin:0"><i class="ti ti-search"></i><input type="text" id="task-search" placeholder="Rechercher…" oninput="renderTasks()"></div>
-        <button class="btn btn-sm" id="mine-toggle" onclick="toggleMine()" title="Filtrer sur mes tâches"><i class="ti ti-user"></i> Mes tâches</button>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div class="sbar" style="flex:1;min-width:180px;margin:0"><i class="ti ti-search"></i><input type="text" id="task-search" placeholder="Rechercher…" oninput="renderTasks()"></div>
+        <select id="cf-tasks" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
       </div>
       <div class="fbar" id="task-fbar">
         <button class="chip on" onclick="setFilter('task','all',this)">Toutes</button>
@@ -309,26 +312,49 @@ tr.od td{background:#FFFBF5}
         <button class="chip" onclick="setFilter('task','wip',this)">En cours</button>
         <button class="chip" onclick="setFilter('task','review',this)">En révision</button>
         <button class="chip" onclick="setFilter('task','blocked',this)">Bloqué</button>
-        <button class="chip" onclick="setFilter('task','done',this)">Terminé</button>
       </div>
-      <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:21%">Titre</th><th style="width:12%">Statut</th><th style="width:9%">Priorité</th><th style="width:13%">Assigné à</th><th style="width:10%">Catégorie</th><th style="width:10%">Échéance</th><th style="width:9%">Avct.</th><th style="width:4%">💬</th><th style="width:5%"></th></tr></thead>
+      <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:18%">Titre</th><th style="width:11%">Statut</th><th style="width:8%">Priorité</th><th style="width:12%">Assigné à</th><th style="width:10%">Catégorie</th><th style="width:9%">Échéance</th><th style="width:8%">Avct.</th><th style="width:7%">Process</th><th style="width:10%"></th></tr></thead>
       <tbody id="task-body"></tbody></table></div>
     </div>
 
+    <div id="tab-completed" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div class="sbar" style="flex:1;min-width:180px;margin:0"><i class="ti ti-search"></i><input type="text" id="comp-search" placeholder="Rechercher…" oninput="renderCompleted()"></div>
+        <select id="cf-completed" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-checks"></i>Tâches clôturées</span><span style="font-size:12px;color:var(--tx2)" id="comp-count"></span></div>
+        <table><thead><tr><th style="width:7%">ID</th><th style="width:22%">Titre</th><th style="width:14%">Collaborateur</th><th style="width:12%">Catégorie</th><th style="width:10%">Créée</th><th style="width:10%">Clôturée</th><th style="width:8%">Cycle</th><th style="width:12%">SLA</th><th style="width:5%"></th></tr></thead>
+        <tbody id="comp-body"></tbody></table>
+      </div>
+    </div>
+
     <div id="tab-requests" style="display:none">
-      <div class="sbar"><i class="ti ti-search"></i><input type="text" id="req-search" placeholder="Rechercher…" oninput="renderReqs()"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div class="sbar" style="flex:1;min-width:180px;margin:0"><i class="ti ti-search"></i><input type="text" id="req-search" placeholder="Rechercher…" oninput="renderReqs()"></div>
+        <select id="cf-reqs" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
+      </div>
+      <div class="fbar" id="req-view-bar" style="margin-bottom:8px">
+        <button class="chip on" id="rv-todo" onclick="setReqView('todo')"><i class="ti ti-inbox" style="font-size:12px"></i> À traiter</button>
+        <button class="chip" id="rv-done" onclick="setReqView('done')"><i class="ti ti-archive" style="font-size:12px"></i> Demandes traitées</button>
+      </div>
       <div class="fbar" id="req-fbar">
-        <button class="chip on" onclick="setFilter('req','all',this)">Toutes</button>
+        <button class="chip on" onclick="setFilter('req','all',this)">Tous types</button>
         <button class="chip" onclick="setFilter('req','request-int',this)">Interne</button>
         <button class="chip" onclick="setFilter('req','request-ext',this)">Externe</button>
         <button class="chip" onclick="setFilter('req','audit-req',this)">Audit</button>
       </div>
-      <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:21%">Objet</th><th style="width:10%">Type</th><th style="width:12%">Assigné à</th><th style="width:11%">Origine</th><th style="width:11%">Statut</th><th style="width:9%">Date</th><th style="width:9%">Réf.</th><th style="width:4%">💬</th><th style="width:6%"></th></tr></thead>
+      <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:20%">Objet</th><th style="width:9%">Type</th><th style="width:12%">Assigné à</th><th style="width:10%">Origine</th><th style="width:10%">Statut</th><th style="width:9%">Date</th><th style="width:8%">Réf.</th><th style="width:15%"></th></tr></thead>
       <tbody id="req-body"></tbody></table></div>
     </div>
 
     <div id="tab-recurring" style="display:none">
-      <div class="info-box"><i class="ti ti-info-circle"></i><div>Clôturer (✓) une tâche récurrente crée automatiquement une nouvelle occurrence avec la prochaine échéance calculée selon la fréquence choisie.</div></div>
+      <div class="info-box"><i class="ti ti-info-circle"></i><div>Clôturer (✓) une tâche récurrente crée automatiquement une nouvelle occurrence avec la prochaine échéance calculée selon la fréquence, le jour et l'heure choisis.</div></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <div style="flex:1"></div>
+        <label style="font-size:12px;color:var(--tx2)">Collaborateur</label>
+        <select id="cf-recur" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
+      </div>
       <div class="card">
         <div class="card-hd"><span class="card-title"><i class="ti ti-repeat"></i>Récurrentes actives</span><button class="btn btn-p btn-sm" onclick="openNewModal()"><i class="ti ti-plus"></i> Nouvelle</button></div>
         <table><thead><tr><th style="width:7%">ID</th><th style="width:21%">Titre</th><th style="width:12%">Statut</th><th style="width:14%">Fréquence</th><th style="width:12%">Assigné</th><th style="width:11%">Prochaine éch.</th><th style="width:8%">Occur.</th><th style="width:15%"></th></tr></thead>
@@ -414,7 +440,7 @@ tr.od td{background:#FFFBF5}
   <input type="hidden" id="f-eid">
   <div class="fg"><label>Titre *</label><input type="text" id="f-title" placeholder="Ex : Rapport mensuel AML"></div>
   <div class="frow">
-    <div class="fg"><label>Type</label><select id="f-type"><option value="task">Tâche interne</option><option value="request-int">Demande interne</option><option value="request-ext">Demande externe</option><option value="audit-req">Audit / conformité</option></select></div>
+    <div class="fg"><label>Type</label><select id="f-type" onchange="syncTypeUI()"><option value="task">Tâche interne</option><option value="request-int">Demande interne</option><option value="request-ext">Demande externe</option><option value="audit-req">Audit / conformité</option></select></div>
     <div class="fg"><label>Catégorie</label><select id="f-cat"><option>KYC / Onboarding</option><option>Réclamation</option><option>Opérations</option><option>Conformité / AML</option><option>Technique</option><option>Reporting</option><option>Partenaire</option><option>Réglementaire</option><option>Autre</option></select></div>
   </div>
   <div class="frow3">
@@ -448,13 +474,16 @@ tr.od td{background:#FFFBF5}
         </div>
         <div class="fg" id="grp-days" style="display:none;margin-bottom:0"><label>Tous les X jours</label><input type="number" id="f-days" min="1" max="365" value="14"></div>
       </div>
-      <div class="fg" id="grp-weekday" style="margin-top:10px;margin-bottom:0"><label>Jour de la semaine</label>
-        <select id="f-weekday">
-          <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
-          <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option><option value="0">Dimanche</option>
-        </select>
+      <div class="frow" style="margin-top:10px">
+        <div class="fg" id="grp-weekday" style="margin-bottom:0"><label>Jour de la semaine</label>
+          <select id="f-weekday">
+            <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
+            <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option><option value="0">Dimanche</option>
+          </select>
+        </div>
+        <div class="fg" id="grp-monthday" style="display:none;margin-bottom:0"><label>Jour du mois</label><input type="number" id="f-monthday" min="1" max="31" value="1" placeholder="1–31"></div>
+        <div class="fg" id="grp-time" style="margin-bottom:0"><label>Heure d'exécution (AM/PM)</label><input type="time" id="f-time"></div>
       </div>
-      <div class="fg" style="margin-top:10px;margin-bottom:0"><label>Date de fin (optionnel)</label><input type="date" id="f-rec-end"></div>
     </div>
   </div>
   <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
@@ -510,6 +539,8 @@ tr.od td{background:#FFFBF5}
     <div class="sdiv"><i class="ti ti-repeat" style="font-size:13px"></i>Récurrence</div>
     <div id="det-recur-info" style="margin-bottom:8px"></div>
   </div>
+  <div class="sdiv"><i class="ti ti-users-group" style="font-size:13px"></i>Affectation & historique</div>
+  <div id="det-assign" style="margin-bottom:4px"></div>
   <div class="sdiv"><i class="ti ti-sitemap" style="font-size:13px"></i>Process & étapes</div>
   <div id="proc-steps"></div>
   <div style="background:var(--surf2);border-radius:var(--r);padding:12px;margin-bottom:4px">
@@ -552,9 +583,9 @@ const firebaseConfig={apiKey:"AIzaSyD5AIiaNK-O_WiKmBp5MGYTBgHLtPPepQ8",authDomai
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
 
-const ALL_TABS=['dashboard','stats','tasks','requests','recurring','collabs','alerts','refs','report','audit'];
-const TAB_TITLES={dashboard:'Tableau de bord',stats:'Statistiques',tasks:'Tâches & Traitements',requests:'Demandes',recurring:'Tâches récurrentes',collabs:'Collaborateurs',refs:'Références',report:'Rapport par période',audit:'Audit & Journal',alerts:'Alertes'};
-const SM={new:{l:'Nouveau',c:'b-new'},wip:{l:'En cours',c:'b-wip'},done:{l:'Terminé',c:'b-done'},blocked:{l:'Bloqué',c:'b-blk'},review:{l:'En révision',c:'b-rev'}};
+const ALL_TABS=['dashboard','stats','tasks','completed','requests','recurring','collabs','alerts','refs','report','audit'];
+const TAB_TITLES={dashboard:'Tableau de bord',stats:'Statistiques',tasks:'Tâches',completed:'Tâches terminées',requests:'Demandes',recurring:'Tâches récurrentes',collabs:'Collaborateurs',refs:'Références',report:'Rapport par période',audit:'Audit & Journal',alerts:'Alertes'};
+const SM={new:{l:'Nouveau',c:'b-new'},wip:{l:'En cours',c:'b-wip'},done:{l:'Terminé',c:'b-done'},blocked:{l:'Bloqué',c:'b-blk'},review:{l:'En révision',c:'b-rev'},traite:{l:'Traité',c:'b-done'},ignore:{l:'Ignoré',c:'b-blk'}};
 const PM={high:{l:'Haute',c:'b-hi'},med:{l:'Moyenne',c:'b-md'},low:{l:'Basse',c:'b-lo'}};
 const TM={task:{l:'Tâche',c:'b-new'},'request-int':{l:'Interne',c:'b-int'},'request-ext':{l:'Externe',c:'b-ext'},'audit-req':{l:'Audit',c:'b-aud'}};
 const FM={daily:{l:'Quotidien',d:1},weekly:{l:'Hebdomadaire',d:7},biweekly:{l:'Bimensuel',d:14},monthly:{l:'Mensuel',d:30},quarterly:{l:'Trimestriel',d:90}};
@@ -565,7 +596,11 @@ const COLLABS=[
   {id:'c1',name:'Oumayma Ben Rouha',role:'Back Office',email:'o.benrouha@viamobile.tn',initials:'OB'},
 ];
 
-let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null,onlyMine=false;
+const REQ_DONE=['traite','ignore','done'];
+const isTask=e=>e.type==='task';
+const isReq=e=>e.type!=='task';
+const reqClosed=e=>REQ_DONE.includes(e.status);
+let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null,collabFilter='',reqView='todo';
 
 const todayStr=()=>new Date().toISOString().slice(0,10);
 const nowStr=()=>new Date().toLocaleString('fr-FR');
@@ -578,20 +613,28 @@ const isOverdue=e=>e.status!=='done'&&e.due&&daysDiff(e.due)<0;
 const isUrgent=e=>{const d=daysDiff(e.due);return e.status!=='done'&&e.due&&d!==null&&d>=0&&d<=3;};
 function addDays(s,n){const d=new Date(s);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
 function addMonths(s,n){const d=new Date(s);d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10);}
+function setMonthDay(dateObj,day){const d=new Date(dateObj);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d;}
+function monthlyDate(from,add,md){const f=new Date(from);let y=f.getFullYear(),m=f.getMonth()+add;y+=Math.floor(m/12);m=((m%12)+12)%12;const last=new Date(y,m+1,0).getDate();const day=md?Math.min(md,last):Math.min(f.getDate(),last);return new Date(y,m,day).toISOString().slice(0,10);}
 function calcNext(r,from){
+  const md=parseInt(r.monthDay)||0;
   if(r.freq==='daily')return addDays(from,1);
   if(r.freq==='weekly'){const wd=parseInt(r.weekday||1);let d=new Date(from);d.setDate(d.getDate()+1);while(d.getDay()!==wd)d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
-  if(r.freq==='biweekly')return addDays(from,14);
-  if(r.freq==='monthly')return addMonths(from,1);
-  if(r.freq==='quarterly')return addMonths(from,3);
+  if(r.freq==='biweekly'){let d=new Date(addDays(from,14));if(md)d=setMonthDay(d,md);return d.toISOString().slice(0,10);}
+  if(r.freq==='monthly')return monthlyDate(from,1,md);
+  if(r.freq==='quarterly')return monthlyDate(from,3,md);
   if(r.freq==='custom')return addDays(from,parseInt(r.days)||7);
   return addDays(from,7);
 }
 function freqLbl(r){
   if(!r||!r.enabled)return'—';
-  if(r.freq==='custom')return`Tous les ${r.days}j`;
-  if(r.freq==='weekly'&&r.weekday!==undefined)return`Hebdo (${WD[r.weekday]})`;
-  return FM[r.freq]?FM[r.freq].l:r.freq;
+  let base;
+  if(r.freq==='custom')base=`Tous les ${r.days}j`;
+  else if(r.freq==='weekly')base=`Hebdo${(r.weekday!==undefined&&r.weekday!==null&&r.weekday!=='')?' ('+WD[r.weekday]+')':''}`;
+  else base=FM[r.freq]?FM[r.freq].l:r.freq;
+  const bits=[];
+  if((r.freq==='monthly'||r.freq==='biweekly'||r.freq==='quarterly')&&r.monthDay)bits.push('le '+r.monthDay);
+  if(r.time)bits.push(r.time);
+  return base+(bits.length?' · '+bits.join(' · '):'');
 }
 function pbar(pct,od){const p=Math.min(100,Math.max(0,pct||0));return`<div class="pb-wrap" style="width:70px"><div class="pb${od?' od':''}" style="width:${p}%"></div></div>`;}
 function dueCell(e){
@@ -669,14 +712,24 @@ function populateSelects(){
     COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
   });
   const rc=g('rpt-collab');if(rc){rc.innerHTML='<option value="all">Tous</option>';COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;rc.appendChild(o);});}
+  ['cf-tasks','cf-completed','cf-reqs','cf-recur'].forEach(sid=>{
+    const sel=g(sid);if(!sel)return;
+    sel.innerHTML='<option value="">Tous les collaborateurs</option>';
+    COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=(c.id===myCollabId()?'👤 '+c.name:c.name);sel.appendChild(o);});
+    sel.value=collabFilter;
+  });
 }
+function syncCollabSelects(){['cf-tasks','cf-completed','cf-reqs','cf-recur'].forEach(sid=>{const s=g(sid);if(s)s.value=collabFilter;});}
+function setCollabFilter(val){collabFilter=val;syncCollabSelects();render();}
+function setReqView(v){reqView=v;g('rv-todo').classList.toggle('on',v==='todo');g('rv-done').classList.toggle('on',v==='done');renderReqs();}
+function collabPass(e){return !collabFilter||e.assignee===collabFilter;}
 
 // FIRESTORE
 function subscribeEntries(){
   if(unsubEntries)unsubEntries();
   unsubEntries=db.collection('entries').orderBy('createdAt','desc').onSnapshot(snap=>{
     entries=snap.docs.map(d=>({id:d.id,...d.data()}));
-    entries.forEach(e=>{if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.recur)e.recur={enabled:false};if(!e.steps)e.steps=[];});
+    entries.forEach(e=>{if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.recur)e.recur={enabled:false};if(!e.steps)e.steps=[];if(!e.assignHist)e.assignHist=[];});
     render();updateBadges();updateAlertBanner();
   },err=>showToast('Erreur Firebase: '+err.message));
 }
@@ -691,8 +744,7 @@ async function addLog(type,action,ref){const e={ts:nowStr(),type,action,ref,user
 async function spawnNext(e){
   if(!e.recur||!e.recur.enabled)return null;
   const baseDue=e.due||todayStr(),nextDue=calcNext(e.recur,baseDue);
-  if(e.recur.endDate&&nextDue>e.recur.endDate){await addLog('Récurrence',`Récurrence terminée : "${e.title}"`,e.id);return null;}
-  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',
+  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',recurParentId:e.id,
     comments:[{ts:nowStr(),text:`Nouvelle occurrence depuis ${e.id} (clôturé le ${todayStr()}).`,user:curUser?curUser.email:'?'}],attachments:[],steps:[]};
   const nid=await save(ne,null);
   await db.collection('recurHist').add({parentId:e.id,newId:nid,title:e.title,freq:freqLbl(e.recur),closedAt:todayStr(),parentDue:e.due,nextDue});
@@ -702,8 +754,9 @@ async function spawnNext(e){
 
 // BADGES
 function updateBadges(){
-  g('nb-tasks').textContent=entries.filter(e=>e.type==='task'&&e.status!=='done').length;
-  g('nb-reqs').textContent=entries.filter(e=>e.type!=='task'&&e.status!=='done').length;
+  g('nb-tasks').textContent=entries.filter(e=>isTask(e)&&e.status!=='done').length;
+  g('nb-completed').textContent=entries.filter(e=>isTask(e)&&e.status==='done').length;
+  g('nb-reqs').textContent=entries.filter(e=>isReq(e)&&!reqClosed(e)).length;
   g('nb-recur').textContent=entries.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done').length;
   const al=entries.filter(e=>isOverdue(e)||isUrgent(e));
   const nb=g('nb-alerts');nb.textContent=al.length;nb.className='nb'+(al.length>0?' red':'');
@@ -731,13 +784,13 @@ function setFilter(which,val,el){
   if(which==='task')renderTasks();else renderReqs();
 }
 function myCollabId(){const c=COLLABS.find(x=>curUser&&x.email===curUser.email);return c?c.id:null;}
-function toggleMine(){onlyMine=!onlyMine;g('mine-toggle').classList.toggle('btn-p',onlyMine);renderTasks();}
 
 function render(){
   renderKPIs();
   if(curTab==='dashboard')renderDashboard();
   else if(curTab==='stats')renderStats();
   else if(curTab==='tasks')renderTasks();
+  else if(curTab==='completed')renderCompleted();
   else if(curTab==='requests')renderReqs();
   else if(curTab==='recurring')renderRecurring();
   else if(curTab==='collabs')renderCollabs();
@@ -769,46 +822,85 @@ function renderDashboard(){
 
 function renderTasks(){
   const q=(g('task-search').value||'').toLowerCase();
-  let list=entries.filter(e=>e.type==='task');
-  if(onlyMine){const mid=myCollabId();list=list.filter(e=>e.assignee===mid);}
+  let list=entries.filter(e=>isTask(e)&&e.status!=='done');
+  if(collabFilter)list=list.filter(collabPass);
   if(filters.task!=='all')list=list.filter(e=>e.status===filters.task);
   if(q)list=list.filter(e=>(e.title+e.ref+e.cat+collabName(e.assignee)).toLowerCase().includes(q));
   list.sort((a,b)=>isOverdue(a)&&!isOverdue(b)?-1:!isOverdue(a)&&isOverdue(b)?1:0);
   const tb=g('task-body');
   if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune tâche.</td></tr>';return;}
-  tb.innerHTML=list.map(e=>{const od=isOverdue(e),nc=(e.comments||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+  tb.innerHTML=list.map(e=>{const od=isOverdue(e),ns=(e.steps||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
     <td title="${esc(e.title)}">${trunc(e.title,20)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}${recBadge(e)}</td>
     <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
     <td><span class="tag">${e.cat||'—'}</span></td>${dueCell(e)}
     <td>${pbar(e.pct,od)} <span style="font-size:10px;color:var(--tx3)">${e.pct||0}%</span></td>
-    <td style="text-align:center">${nc?`<span class="badge b-rev">${nc}</span>`:''}</td>
-    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')" title="Clôturer"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+    <td style="text-align:center"><button class="btn btn-sm" onclick="event.stopPropagation();toggleProc('${e.id}')" title="Voir le process">${ns?`<i class="ti ti-sitemap"></i> ${ns}`:'<i class="ti ti-sitemap" style="opacity:.4"></i>'}</button></td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')" title="Clôturer"><i class="ti ti-check"></i></button></td></tr>
+    <tr class="proc-row" id="proc-${e.id}" style="display:none"><td colspan="10" style="background:var(--surf2);padding:0">${procHTML(e)}</td></tr>`;}).join('');
+}
+function procHTML(e){
+  const steps=e.steps||[];
+  if(!steps.length)return`<div style="padding:10px 14px;font-size:12px;color:var(--tx3)">Aucune étape définie — ouvrez la tâche pour ajouter son process.</div>`;
+  return`<div style="padding:10px 14px;display:flex;flex-direction:column;gap:6px">${steps.map((s,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px">
+    <span class="badge b-new" style="font-size:9px;flex-shrink:0">${i+1}</span>
+    <div><span style="font-weight:600">${esc(s.title)}</span>${s.owner?` · <span style="color:var(--tx2)">${esc(s.owner)}</span>`:''}
+    ${(s.input||s.output)?`<div style="color:var(--tx2);font-size:11px">${s.input?'In: '+esc(s.input):''}${s.input&&s.output?' → ':''}${s.output?'Out: '+esc(s.output):''}</div>`:''}
+    ${s.blocks?`<div style="color:var(--red-tx);font-size:11px"><i class="ti ti-alert-triangle" style="font-size:11px"></i> ${esc(s.blocks)}</div>`:''}</div></div>`).join('')}</div>`;
+}
+function toggleProc(id){const r=g('proc-'+id);if(r)r.style.display=r.style.display==='none'?'table-row':'none';}
+
+function renderCompleted(){
+  const q=(g('comp-search').value||'').toLowerCase();
+  let list=entries.filter(e=>isTask(e)&&e.status==='done');
+  if(collabFilter)list=list.filter(collabPass);
+  if(q)list=list.filter(e=>(e.title+e.cat+collabName(e.assignee)).toLowerCase().includes(q));
+  list.sort((a,b)=>{const ca=cmpDateObj(a),cb=cmpDateObj(b);return (cb?+cb:0)-(ca?+ca:0);});
+  g('comp-count').textContent=list.length+' tâche(s)';
+  const tb=g('comp-body');
+  if(!list.length){tb.innerHTML='<tr><td colspan="9" class="empty"><i class="ti ti-checks"></i>Aucune tâche terminée.</td></tr>';return;}
+  tb.innerHTML=list.map(e=>{const cyc=cycleDays(e),met=slaMet(e),tgt=slaFor(e);
+    const slaCell=met==null?'<span style="color:var(--tx3)">—</span>':met?`<span class="badge b-done" style="font-size:9px">✓ ≤${tgt}j</span>`:`<span class="badge b-od" style="font-size:9px">✗ >${tgt}j</span>`;
+    return`<tr class="row" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td title="${esc(e.title)}">${trunc(e.title,26)}${recBadge(e)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),12)}</span></td>
+    <td><span class="tag">${e.cat||'—'}</span></td>
+    <td style="font-size:11px;color:var(--tx2)">${e.createdAt?e.createdAt.slice(0,10):'—'}</td>
+    <td style="font-size:11px;color:var(--grn-tx);font-weight:600">${cmpDate(e)||'—'}</td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${cyc==null?'—':cyc+'j'}</td>
+    <td>${slaCell}</td>
+    <td><button class="btn btn-sm" onclick="event.stopPropagation();reopen('${e.id}')" title="Rouvrir"><i class="ti ti-arrow-back-up"></i></button></td></tr>`;}).join('');
 }
 
 function renderReqs(){
   const q=(g('req-search').value||'').toLowerCase();
-  let list=entries.filter(e=>e.type!=='task');
+  let list=entries.filter(isReq);
+  list=list.filter(e=>reqView==='done'?reqClosed(e):!reqClosed(e));
+  if(collabFilter)list=list.filter(collabPass);
   if(filters.req!=='all')list=list.filter(e=>e.type===filters.req);
   if(q)list=list.filter(e=>(e.title+e.ref+e.origin+collabName(e.assignee)).toLowerCase().includes(q));
   const tb=g('req-body');
-  if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune demande.</td></tr>';return;}
-  tb.innerHTML=list.map(e=>{const od=isOverdue(e),nc=(e.comments||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
+  if(!list.length){tb.innerHTML=`<tr><td colspan="9" class="empty"><i class="ti ti-filter-off"></i>${reqView==='done'?'Aucune demande traitée.':'Aucune demande à traiter.'}</td></tr>`;return;}
+  tb.innerHTML=list.map(e=>{const od=isOverdue(e),acts=reqView==='done'
+    ?`<button class="btn btn-sm" onclick="event.stopPropagation();reopen('${e.id}')" title="Rouvrir"><i class="ti ti-arrow-back-up"></i> Rouvrir</button>`
+    :`<button class="btn btn-sm btn-p" onclick="event.stopPropagation();markReq('${e.id}','traite')" title="Marquer traité"><i class="ti ti-check"></i></button>
+      <button class="btn btn-sm" onclick="event.stopPropagation();markReq('${e.id}','ignore')" title="Ignorer"><i class="ti ti-ban"></i></button>`;
+  return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
     <td title="${esc(e.title)}">${trunc(e.title,18)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}</td>
     <td>${bdg(TM,e.type)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
     <td style="font-size:11px;color:var(--tx2)">${trunc(e.origin,12)||'—'}</td>
     <td>${bdg(SM,e.status)}</td>
-    <td style="font-size:11px;color:var(--tx2)">${e.createdAt?e.createdAt.slice(0,10):'—'}</td>
+    <td style="font-size:11px;color:var(--tx2)">${reqView==='done'?(cmpDate(e)||(e.createdAt?e.createdAt.slice(0,10):'—')):(e.createdAt?e.createdAt.slice(0,10):'—')}</td>
     <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${e.ref||'—'}</td>
-    <td style="text-align:center">${nc?`<span class="badge b-rev">${nc}</span>`:''}</td>
-    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+    <td style="white-space:nowrap">${acts}</td></tr>`;}).join('');
 }
 
 function renderRecurring(){
-  const active=entries.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done');
+  const active=entries.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done'&&collabPass(e));
   const tb=g('recur-body');
   if(!active.length)tb.innerHTML='<tr><td colspan="8" class="empty"><i class="ti ti-repeat"></i>Aucune tâche récurrente active.</td></tr>';
   else tb.innerHTML=active.map(e=>{const od=isOverdue(e);return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
@@ -1087,9 +1179,9 @@ function openDetail(id){
   if(e.recur&&e.recur.enabled){
     rs.style.display='block';
     ri.innerHTML=`<span class="badge b-rec"><i class="ti ti-repeat" style="font-size:11px"></i> ${freqLbl(e.recur)}</span>
-      ${e.recur.endDate?`<span style="font-size:11px;color:var(--tx2);margin-left:8px">Fin le ${e.recur.endDate}</span>`:''}
       ${e.recurParentId?`<span style="font-size:11px;color:var(--tx3);margin-left:8px">Issue de ${(e.recurParentId||'').slice(-8)}</span>`:''}`;
   }else rs.style.display='none';
+  renderAssign(e);
   renderSteps();renderAtList();renderCmList();
   g('cm-input').value='';g('at-name').value='';g('at-url').value='';
   ['ps-title','ps-owner','ps-input','ps-output','ps-tools','ps-blocks'].forEach(id=>g(id).value='');
@@ -1177,6 +1269,39 @@ async function addComment(){
 document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key==='Enter'&&document.activeElement===g('cm-input'))addComment();});
 
 // CRUD
+function renderAssign(e){
+  const c=g('det-assign');if(!c)return;
+  const opts=['<option value="">— Non assigné —</option>'].concat(COLLABS.map(x=>`<option value="${x.id}"${x.id===e.assignee?' selected':''}>${esc(x.name)}</option>`)).join('');
+  const hist=e.assignHist||[];
+  const histHTML=hist.length?`<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${hist.slice().reverse().map(h=>`<div style="font-size:11px;color:var(--tx2)"><i class="ti ti-arrow-right" style="font-size:11px"></i> ${esc(collabName(h.from))} → <b style="color:var(--tx)">${esc(collabName(h.to))}</b> <span style="color:var(--tx3)">· ${esc(h.ts)}${h.user?' · '+esc(h.user):''}</span></div>`).join('')}</div>`:'<div style="font-size:11px;color:var(--tx3);margin-top:6px">Aucune réaffectation enregistrée.</div>';
+  c.innerHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--tx2)">Actuel :</span> ${collabAv(e.assignee,18)} <span style="font-size:12px">${esc(collabName(e.assignee))}</span>
+    <select id="reassign-sel" style="padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit;margin-left:auto">${opts}</select>
+    <button class="btn btn-sm btn-p" onclick="reassign()"><i class="ti ti-user-share"></i> Réaffecter</button>
+  </div>${histHTML}`;
+}
+async function reassign(){
+  const e=entries.find(x=>x.id===curDetId);if(!e)return;
+  const to=g('reassign-sel').value;
+  if(to===(e.assignee||'')){showToast('Aucun changement');return;}
+  const hist=[...(e.assignHist||[]),{from:e.assignee||'',to,ts:nowStr(),user:curUser?curUser.email:'?'}];
+  try{await save({assignee:to,assignHist:hist},e.id);
+    await addLog('Affectation',`Réaffecté : ${collabName(e.assignee)} → ${collabName(to)}`,e.id);
+    e.assignee=to;e.assignHist=hist;renderAssign(e);showToast('✓ Réaffecté');
+  }catch(err){alert('Échec de la réaffectation : '+(err&&err.message?err.message:err));}
+}
+async function markReq(id,st){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const lbl=st==='traite'?'Traité':'Ignoré';
+  const upd={status:st,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:lbl+'.',user:curUser?curUser.email:'?'}]};
+  try{await save(upd,id);await addLog('Demande',`${lbl} : "${e.title}"`,id);showToast('✓ Demande : '+lbl.toLowerCase());}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+async function reopen(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  try{await save({status:'new',completedAt:''},id);await addLog(isTask(e)?'Tâche':'Demande',`Réouverture : "${e.title}"`,id);showToast('↩ Rouvert');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
 async function quickDone(id){
   const e=entries.find(x=>x.id===id);if(!e||e.status==='done')return;
   const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
@@ -1201,17 +1326,28 @@ async function clearLog(){
 // MODALS
 function openNewModal(preset){
   g('f-eid').value='';g('m-lbl').textContent='Nouvelle entrée';g('m-sub').textContent='';
-  ['f-title','f-ref','f-origin','f-desc','f-due','f-rec-end'].forEach(id=>{const el=g(id);if(el)el.value='';});
+  ['f-title','f-ref','f-origin','f-desc','f-due','f-time'].forEach(id=>{const el=g(id);if(el)el.value='';});
   g('f-pct').value='0';g('f-stat').value='new';g('f-pri').value='med';g('f-type').value=preset||'task';
-  g('f-rec').checked=false;g('f-freq').value='weekly';g('f-days').value='14';g('f-assignee').value='';
-  g('rec-fields').style.display='none';g('grp-days').style.display='none';g('grp-weekday').style.display='block';
+  g('f-rec').checked=false;g('f-freq').value='weekly';g('f-days').value='14';g('f-monthday').value='1';g('f-assignee').value='';
+  g('rec-fields').style.display='none';toggleFreqOpts();
+  syncTypeUI();
   g('ov-new').classList.add('open');
 }
 function openRefModal(){g('ov-ref').classList.add('open');}
 function closeOv(id){g(id).classList.remove('open');}
 function ovClose(id,ev){if(ev.target===g(id))closeOv(id);}
 function toggleRec(){g('rec-fields').style.display=g('f-rec').checked?'block':'none';}
-function toggleFreqOpts(){const f=g('f-freq').value;g('grp-days').style.display=f==='custom'?'block':'none';g('grp-weekday').style.display=f==='weekly'?'block':'none';}
+function toggleFreqOpts(){const f=g('f-freq').value;
+  g('grp-days').style.display=f==='custom'?'block':'none';
+  g('grp-weekday').style.display=f==='weekly'?'block':'none';
+  g('grp-monthday').style.display=(f==='biweekly'||f==='monthly'||f==='quarterly')?'block':'none';
+}
+function syncTypeUI(){
+  const isReqT=g('f-type').value!=='task',sel=g('f-stat'),cur=sel.value;
+  const opts=isReqT?[['new','Nouveau'],['wip','En cours'],['review','En révision'],['blocked','Bloqué'],['traite','Traité'],['ignore','Ignoré']]:[['new','Nouveau'],['wip','En cours'],['review','En révision'],['blocked','Bloqué'],['done','Terminé']];
+  sel.innerHTML=opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  if(opts.some(o=>o[0]===cur))sel.value=cur;
+}
 function toggleFab(){fabOpen=!fabOpen;g('fab-menu').classList.toggle('open',fabOpen);g('fab-btn').innerHTML=fabOpen?'<i class="ti ti-x"></i>':'<i class="ti ti-plus"></i>';}
 function quickCreate(type){toggleFab();g('q-type').value=type;g('q-lbl').textContent=(TM[type]?TM[type].l:'Entrée')+' rapide';g('q-title').value='';g('q-due').value='';g('q-pri').value='med';g('q-assignee').value='';g('ov-quick').classList.add('open');}
 
@@ -1219,19 +1355,20 @@ function editEntry(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
   g('f-eid').value=id;g('m-lbl').textContent='Modifier';g('m-sub').textContent=id.slice(-8);
   g('f-title').value=e.title||'';g('f-type').value=e.type||'task';g('f-cat').value=e.cat||'Autre';
+  syncTypeUI();
   g('f-pri').value=e.priority||'med';g('f-stat').value=e.status||'new';g('f-pct').value=e.pct||0;
   g('f-due').value=e.due||'';g('f-ref').value=e.ref||'';g('f-origin').value=e.origin||'';g('f-desc').value=e.desc||'';g('f-assignee').value=e.assignee||'';
   const r=e.recur||{};
   g('f-rec').checked=!!r.enabled;g('f-freq').value=r.freq||'weekly';g('f-days').value=r.days||14;
-  g('f-rec-end').value=r.endDate||'';g('f-weekday').value=r.weekday!==undefined?r.weekday:1;
-  g('rec-fields').style.display=r.enabled?'block':'none';g('grp-days').style.display=r.freq==='custom'?'block':'none';g('grp-weekday').style.display=r.freq==='weekly'?'block':'none';
+  g('f-monthday').value=r.monthDay||1;g('f-time').value=r.time||'';g('f-weekday').value=(r.weekday!==undefined&&r.weekday!==null)?r.weekday:1;
+  g('rec-fields').style.display=r.enabled?'block':'none';toggleFreqOpts();
   g('ov-new').classList.add('open');
 }
 
 async function saveEntry(){
   const title=g('f-title').value.trim();if(!title)return alert('Le titre est obligatoire.');
   const editId=g('f-eid').value,recurOn=g('f-rec').checked,freq=g('f-freq').value;
-  const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):null,endDate:g('f-rec-end').value||''}:{enabled:false};
+  const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):null,monthDay:(freq==='biweekly'||freq==='monthly'||freq==='quarterly')?(parseInt(g('f-monthday').value)||1):null,time:g('f-time').value||''}:{enabled:false};
   const data={title,type:g('f-type').value,cat:g('f-cat').value,priority:g('f-pri').value,status:g('f-stat').value,pct:parseInt(g('f-pct').value)||0,due:g('f-due').value,ref:g('f-ref').value,origin:g('f-origin').value,desc:g('f-desc').value,assignee:g('f-assignee').value,recur};
   if(data.status==='done'){const prev=editId?entries.find(x=>x.id===editId):null;data.completedAt=(prev&&prev.completedAt)?prev.completedAt:new Date().toISOString();}else{data.completedAt='';}
   try{
@@ -1263,6 +1400,19 @@ function exportCSV(){
   const rows=entries.map(e=>[e.id,e.title,e.type,e.cat,e.status,e.priority,collabName(e.assignee),e.pct||0,e.due||'',e.ref||'',e.origin||'',e.createdAt?e.createdAt.slice(0,10):'',cmpDate(e)||'',cycleDays(e)==null?'':cycleDays(e),e.recur&&e.recur.enabled?freqLbl(e.recur):'Non',(e.comments||[]).length,(e.attachments||[]).length,(e.steps||[]).length].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   dlFile('\uFEFF'+[h.join(','),...rows].join('\n'),'text/csv','ops_tracker_'+todayStr()+'.csv');
   addLog('Export','Export CSV','—');
+}
+function exportXLSX(){
+  if(typeof XLSX==='undefined')return alert('Bibliothèque Excel non chargée. Vérifiez votre connexion.');
+  const fmt=e=>({ID:e.id,Titre:e.title,Type:(TM[e.type]?TM[e.type].l:e.type),Catégorie:e.cat||'',Statut:(SM[e.status]?SM[e.status].l:e.status),Priorité:(PM[e.priority]?PM[e.priority].l:e.priority),'Assigné à':collabName(e.assignee),'Avct %':e.pct||0,Échéance:e.due||'','Créée le':e.createdAt?e.createdAt.slice(0,10):'','Clôturée le':cmpDate(e)||'','Cycle (j)':cycleDays(e)==null?'':cycleDays(e),SLA:(slaMet(e)==null?'':(slaMet(e)?'Respecté':'Dépassé')),Récurrence:(e.recur&&e.recur.enabled?freqLbl(e.recur):'Non'),Référence:e.ref||'',Origine:e.origin||'',Commentaires:(e.comments||[]).length,PJ:(e.attachments||[]).length,Étapes:(e.steps||[]).length});
+  const wb=XLSX.utils.book_new();
+  const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{Info:'Aucune donnée'}]);XLSX.utils.book_append_sheet(wb,ws,name);};
+  add('Tâches',entries.filter(e=>isTask(e)&&e.status!=='done').map(fmt));
+  add('Tâches terminées',entries.filter(e=>isTask(e)&&e.status==='done').map(fmt));
+  add('Demandes',entries.filter(e=>isReq(e)&&!reqClosed(e)).map(fmt));
+  add('Demandes traitées',entries.filter(e=>isReq(e)&&reqClosed(e)).map(fmt));
+  add('Récurrentes',entries.filter(e=>e.recur&&e.recur.enabled).map(e=>({ID:e.id,Titre:e.title,Fréquence:freqLbl(e.recur),'Assigné à':collabName(e.assignee),'Prochaine éch.':e.due||'',Statut:(SM[e.status]?SM[e.status].l:e.status)})));
+  XLSX.writeFile(wb,'ops_tracker_'+todayStr()+'.xlsx');
+  addLog('Export','Export XLSX','—');
 }
 function exportJSON(){
   dlFile(JSON.stringify({entries,refs,logs,exportedAt:nowStr()},null,2),'application/json','ops_tracker_backup_'+todayStr()+'.json');
