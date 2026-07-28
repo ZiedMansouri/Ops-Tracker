@@ -195,7 +195,32 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
 .reset-chk{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--bord);border-radius:var(--r);margin-bottom:7px;font-size:13px;cursor:pointer}
 .reset-chk input{width:16px;height:16px;cursor:pointer}
 .reset-danger{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:var(--r);padding:11px 13px;font-size:12px;margin:10px 0;display:flex;gap:9px;align-items:flex-start}
-@media(max-width:768px){.sb{display:none}.content{padding:1rem}.kgrid{grid-template-columns:repeat(2,1fr)}.cgrid{grid-template-columns:1fr}.frow,.frow3{grid-template-columns:1fr}.dgrid{grid-template-columns:1fr}.dc{border-right:none}.fab2{bottom:84px}}
+.menu-btn{display:none;background:none;border:1px solid var(--bord2);border-radius:var(--r);padding:6px 9px;cursor:pointer;color:var(--tx);font-size:18px;align-items:center;justify-content:center;flex-shrink:0}
+.sb-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:250}
+.sb-backdrop.open{display:block}
+@media(max-width:768px){
+  .menu-btn{display:inline-flex}
+  .sb{position:fixed;left:0;top:0;height:100vh;width:250px;transform:translateX(-100%);transition:transform .25s ease;z-index:300;box-shadow:2px 0 20px rgba(0,0,0,.18);display:flex}
+  .sb.open{transform:translateX(0)}
+  .content{padding:1rem}
+  .kgrid{grid-template-columns:repeat(2,1fr)}
+  .cgrid{grid-template-columns:1fr}
+  .frow,.frow3{grid-template-columns:1fr}
+  .dgrid{grid-template-columns:1fr}
+  .dc{border-right:none}
+  .fab2{bottom:82px;left:16px}
+  .fab{bottom:24px;right:16px}
+  .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px}
+  #cal-grid{min-width:520px}
+  .topbar{padding:.7rem 1rem;gap:8px}
+  .pg-title{font-size:16px}
+  .tb-acts{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .tb-acts .btn{flex-shrink:0}
+  .modal{width:94vw;max-width:94vw;padding:1.15rem}
+  .ov{padding:16px 10px}
+  .rpt-filters{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -245,6 +270,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
     <button class="btn btn-sm" onclick="doLogout()" title="Déconnexion" style="padding:4px 6px"><i class="ti ti-logout" style="font-size:14px"></i></button>
   </div>
 </aside>
+<div class="sb-backdrop" id="sb-backdrop" onclick="closeSidebar()"></div>
 
 <div class="main">
   <div class="ab hide" id="alert-banner">
@@ -253,6 +279,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
     <button class="btn btn-sm" onclick="goTab('alerts',null)" style="flex-shrink:0"><i class="ti ti-arrow-right"></i> Voir</button>
   </div>
   <div class="topbar">
+    <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
     <div class="pg-title" id="page-title">Tableau de bord</div>
     <div class="tb-acts">
       <button class="btn btn-sm" onclick="exportCSV()"><i class="ti ti-table-export"></i> CSV</button>
@@ -737,6 +764,9 @@ const AVC=['#4F46B8','#0891B2','#059669','#D97706','#DC2626','#7C3AED'];
 const COLLABS=[
   {id:'me',name:'Zied Mansouri',role:'Ops Control Officer',email:'zied.mansouri91@gmail.com',initials:'ZM'},
   {id:'c1',name:'Oumayma Ben Rouha',role:'Back Office',email:'o.benrouha@viamobile.tn',initials:'OB'},
+  {id:'c2',name:'Mohamed Hedi Dridi',role:'Collaborateur',email:'m.dridi@viamobile.tn',initials:'MD'},
+  {id:'c3',name:'Farid Hafiane',role:'Collaborateur',email:'farid.hafiane@viamobile.tn',initials:'FH'},
+  {id:'c4',name:'Ilef Oueslati',role:'Collaborateur',email:'i.oueslati@viamobile.tn',initials:'IO'},
 ];
 // Emails ayant le rôle MANAGER (voient tout + peuvent réinitialiser). Modifiable ici.
 const MANAGERS=['zied.mansouri91@gmail.com'];
@@ -992,11 +1022,14 @@ function updateAlertBanner(){
 }
 
 // NAV
+function toggleSidebar(){const sb=document.querySelector('.sb'),bd=g('sb-backdrop');if(!sb)return;const open=sb.classList.toggle('open');if(bd)bd.classList.toggle('open',open);}
+function closeSidebar(){const sb=document.querySelector('.sb'),bd=g('sb-backdrop');if(sb)sb.classList.remove('open');if(bd)bd.classList.remove('open');}
 function goTab(id,el){
   ALL_TABS.forEach(t=>{const e=g('tab-'+t);if(e)e.style.display=t===id?'block':'none';});
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
   if(el)el.classList.add('on');
   curTab=id;g('page-title').textContent=TAB_TITLES[id]||id;render();
+  closeSidebar();
 }
 function setFilter(which,val,el){
   filters[which]=val;
