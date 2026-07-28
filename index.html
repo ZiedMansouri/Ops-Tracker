@@ -437,6 +437,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
     </div>
 
     <div id="tab-collabs" style="display:none">
+      <div id="collab-manage"></div>
       <div class="collab-grid" id="collab-grid"></div>
       <div class="card">
         <div class="card-hd"><span class="card-title"><i class="ti ti-list"></i>Toutes les tâches assignées</span></div>
@@ -761,13 +762,14 @@ const TM={task:{l:'Tâche',c:'b-new'},'request-int':{l:'Interne',c:'b-int'},'req
 const FM={daily:{l:'Quotidien',d:1},weekly:{l:'Hebdomadaire',d:7},biweekly:{l:'Bimensuel',d:14},monthly:{l:'Mensuel',d:30},quarterly:{l:'Trimestriel',d:90}};
 const WD=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const AVC=['#4F46B8','#0891B2','#059669','#D97706','#DC2626','#7C3AED'];
-const COLLABS=[
-  {id:'me',name:'Zied Mansouri',role:'Ops Control Officer',email:'zied.mansouri91@gmail.com',initials:'ZM'},
-  {id:'c1',name:'Oumayma Ben Rouha',role:'Back Office',email:'o.benrouha@viamobile.tn',initials:'OB'},
-  {id:'c2',name:'Mohamed Hedi Dridi',role:'Collaborateur',email:'m.dridi@viamobile.tn',initials:'MD'},
-  {id:'c3',name:'Farid Hafiane',role:'Collaborateur',email:'farid.hafiane@viamobile.tn',initials:'FH'},
-  {id:'c4',name:'Ilef Oueslati',role:'Collaborateur',email:'i.oueslati@viamobile.tn',initials:'IO'},
+const SEED_COLLABS=[
+  {id:'me',name:'Zied Mansouri',role:'Ops Control Officer',email:'zied.mansouri91@gmail.com',initials:'ZM',roleType:'admin',reportsTo:'',active:true},
+  {id:'c1',name:'Oumayma Ben Rouha',role:'Back Office',email:'o.benrouha@viamobile.tn',initials:'OB',roleType:'collab',reportsTo:'',active:true},
+  {id:'c2',name:'Mohamed Hedi Dridi',role:'Collaborateur',email:'m.dridi@viamobile.tn',initials:'MD',roleType:'collab',reportsTo:'',active:true},
+  {id:'c3',name:'Farid Hafiane',role:'Collaborateur',email:'farid.hafiane@viamobile.tn',initials:'FH',roleType:'collab',reportsTo:'',active:true},
+  {id:'c4',name:'Ilef Oueslati',role:'Collaborateur',email:'i.oueslati@viamobile.tn',initials:'IO',roleType:'collab',reportsTo:'',active:true},
 ];
+let COLLABS=SEED_COLLABS.slice(); // remplacé par la collection Firestore 'collaborateurs' au démarrage
 // Emails ayant le rôle MANAGER (voient tout + peuvent réinitialiser). Modifiable ici.
 const MANAGERS=['zied.mansouri91@gmail.com'];
 // Comptes autorisés aux actions critiques (Réinitialiser / Effacer journal). Modifiable ici.
@@ -779,11 +781,16 @@ const REQ_DONE=['traite','ignore','done'];
 const isTask=e=>e.type==='task';
 const isReq=e=>e.type!=='task';
 const reqClosed=e=>REQ_DONE.includes(e.status);
-let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null,collabFilter='',reqView='todo',curRole='collab';
-function isManager(){return curRole==='manager';}
-function isAdmin(){return !!(curUser&&ADMINS.includes(curUser.email));}
+let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null,collabFilter='',reqView='todo',curCollab=null,unsubCollabs=null;
+function meCollab(){return curCollab||COLLABS.find(c=>curUser&&c.email===curUser.email)||null;}
+function roleLabel(rt){return rt==='admin'?'Admin':rt==='manager'?'Manager':'Collaborateur';}
+function isAdmin(){const m=meCollab();return !!(m&&m.roleType==='admin')||!!(curUser&&ADMINS.includes(curUser.email));}
+function isManager(){const m=meCollab();return isAdmin()||!!(m&&m.roleType==='manager')||!!(curUser&&MANAGERS.includes(curUser.email));}
+function childrenOf(cid){return COLLABS.filter(c=>c.reportsTo===cid).map(c=>c.id);}
+function descendantsOf(cid){const out=[],stack=[...childrenOf(cid)];let guard=0;while(stack.length&&guard++<500){const x=stack.pop();if(out.includes(x))continue;out.push(x);childrenOf(x).forEach(k=>stack.push(k));}return out;}
+function myVisibleCids(){const me=myCollabId();if(!me)return[];return[me,...descendantsOf(me)];}
 function stepOwners(e){return (e.steps||[]).map(s=>s.owner).filter(Boolean);}
-function canSee(e){if(isManager())return true;const me=myCollabId();if(!me)return false;return e.assignee===me||stepOwners(e).includes(me);}
+function canSee(e){if(isManager())return true;const vis=myVisibleCids();if(!vis.length)return false;if(vis.includes(e.assignee))return true;return stepOwners(e).some(o=>vis.includes(o));}
 function scope(list){return isManager()?list:list.filter(canSee);}
 
 const pad2=n=>String(n).padStart(2,'0');
@@ -877,7 +884,7 @@ function weekKey(d){return weekStart(d).toISOString().slice(0,10);}
 function slaMet(e){const c=cycleDays(e);return c==null?null:c<=slaFor(e);}
 
 // AUTH
-auth.onAuthStateChanged(user=>{
+auth.onAuthStateChanged(async user=>{
   if(user){
     curUser=user;
     g('login-screen').style.display='none';
@@ -885,9 +892,10 @@ auth.onAuthStateChanged(user=>{
     g('fab-btn').style.display='flex';
     g('sb-av').textContent=user.email.slice(0,2).toUpperCase();
     g('sb-uname').textContent=user.displayName||user.email;
-    const mc=COLLABS.find(c=>c.email===user.email);
-    curRole=MANAGERS.includes(user.email)?'manager':'collab';
-    g('sb-urole').textContent=(mc?mc.role:'Utilisateur')+(isManager()?' · Manager':' · Collaborateur');
+    await loadCollabs();
+    curCollab=COLLABS.find(c=>c.email===user.email)||null;
+    g('sb-urole').textContent=(curCollab?curCollab.role:'Utilisateur')+' · '+(isAdmin()?'Admin':isManager()?'Manager':'Collaborateur');
+    subscribeCollabs();
     applyRoleUI();
     populateSelects();
     subscribeEntries();
@@ -895,15 +903,69 @@ auth.onAuthStateChanged(user=>{
     loadRefs();
     loadLogs();
   }else{
-    curUser=null;
+    curUser=null;curCollab=null;
     g('login-screen').style.display='flex';
     g('app-screen').style.display='none';
     g('fab-btn').style.display='none';
     const tb=g('today-btn');if(tb)tb.style.display='none';
     if(unsubEntries){unsubEntries();unsubEntries=null;}
     if(unsubMeet){unsubMeet();unsubMeet=null;meetings=[];}
+    if(unsubCollabs){unsubCollabs();unsubCollabs=null;}
   }
 });
+async function loadCollabs(){
+  try{
+    const snap=await db.collection('collaborateurs').get();
+    if(snap.empty){
+      const batch=db.batch();
+      SEED_COLLABS.forEach(c=>batch.set(db.collection('collaborateurs').doc(c.id),c));
+      await batch.commit();
+      COLLABS=SEED_COLLABS.slice();
+    }else{
+      COLLABS=snap.docs.map(d=>({id:d.id,...d.data()}));
+    }
+  }catch(err){COLLABS=SEED_COLLABS.slice();}
+}
+function subscribeCollabs(){
+  if(unsubCollabs)unsubCollabs();
+  unsubCollabs=db.collection('collaborateurs').onSnapshot(snap=>{
+    if(!snap.empty)COLLABS=snap.docs.map(d=>({id:d.id,...d.data()}));
+    curCollab=COLLABS.find(c=>curUser&&c.email===curUser.email)||null;
+    const ur=g('sb-urole');if(ur)ur.textContent=(curCollab?curCollab.role:'Utilisateur')+' · '+(isAdmin()?'Admin':isManager()?'Manager':'Collaborateur');
+    populateSelects();applyRoleUI();
+    if(curTab==='collabs')renderCollabs();
+  },err=>{});
+}
+function collabActive(){return COLLABS.filter(c=>c.active!==false);}
+function nextCid(){let n=1;while(COLLABS.some(c=>c.id==='c'+n))n++;return 'c'+n;}
+async function addCollab(){
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
+  const name=g('nc-name').value.trim(),email=g('nc-email').value.trim().toLowerCase(),roleType=g('nc-role').value,reportsTo=g('nc-reportsto').value;
+  if(!name||!email)return alert('Nom et email obligatoires.');
+  if(COLLABS.some(c=>(c.email||'').toLowerCase()===email))return alert('Cet email existe déjà.');
+  const id=nextCid();
+  const initials=name.split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+  const c={id,name,email,role:roleLabel(roleType),roleType,reportsTo,active:true,initials};
+  try{await db.collection('collaborateurs').doc(id).set(c);await addLog('Collaborateur',`Ajout : ${name} (${roleLabel(roleType)})`,id);
+    g('nc-name').value='';g('nc-email').value='';g('nc-reportsto').value='';showToast('✓ Collaborateur ajouté');
+  }catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+async function updateCollab(id,field,val){
+  if(!isAdmin()){renderCollabs();return alert('Réservé à l\'administrateur.');}
+  if(field==='roleType'&&val!=='admin'){const others=COLLABS.filter(c=>c.roleType==='admin'&&c.id!==id);if(!others.length){renderCollabs();return alert('Il doit rester au moins un administrateur.');}}
+  if(field==='reportsTo'&&val===id){renderCollabs();return alert('Un collaborateur ne peut pas être son propre responsable.');}
+  const upd={[field]:val};if(field==='roleType')upd.role=roleLabel(val);
+  try{await db.collection('collaborateurs').doc(id).set(upd,{merge:true});await addLog('Collaborateur',`Modification (${field}) : ${collabName(id)}`,id);showToast('✓ Mis à jour');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+async function removeCollab(id){
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
+  if(id==='me')return alert('Impossible de retirer le compte principal.');
+  const c=COLLABS.find(x=>x.id===id),assigned=entries.filter(e=>e.assignee===id).length;
+  if(!confirm(`Retirer ${c?c.name:id} ?${assigned?'\n'+assigned+' tâche(s) lui sont assignées (elles resteront, mais sans collaborateur valide).':''}`))return;
+  try{await db.collection('collaborateurs').doc(id).delete();await addLog('Collaborateur',`Retrait : ${c?c.name:id}`,id);showToast('Collaborateur retiré');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
 function doLogin(){
   const e=g('li-email').value.trim(),p=g('li-pass').value;
   g('login-err').style.display='none';
@@ -1204,14 +1266,45 @@ function renderRecurring(){
 }
 
 function renderCollabs(){
+  const mgEl=g('collab-manage');
+  if(mgEl){
+    if(isAdmin()){
+      const opt=(sel)=>COLLABS.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+      mgEl.innerHTML=`<div class="card" style="padding:16px;margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:12px"><i class="ti ti-user-cog"></i> Gestion des collaborateurs</div>
+        <div class="frow3" style="margin-bottom:10px">
+          <div class="fg" style="margin-bottom:0"><label>Nom complet</label><input id="nc-name" placeholder="Prénom Nom"></div>
+          <div class="fg" style="margin-bottom:0"><label>Email (identique à Firebase)</label><input id="nc-email" placeholder="prenom@viamobile.tn"></div>
+          <div class="fg" style="margin-bottom:0"><label>Rôle</label><select id="nc-role"><option value="collab">Collaborateur</option><option value="manager">Manager</option><option value="admin">Admin</option></select></div>
+        </div>
+        <div class="frow" style="margin-bottom:4px">
+          <div class="fg" style="margin-bottom:0"><label>Rattaché à (responsable)</label><select id="nc-reportsto"><option value="">— Aucun —</option>${opt()}</select></div>
+          <div class="fg" style="margin-bottom:0;display:flex;align-items:flex-end"><button class="btn btn-p" onclick="addCollab()"><i class="ti ti-user-plus"></i> Ajouter</button></div>
+        </div>
+        <div style="overflow-x:auto;margin-top:12px"><table style="min-width:640px"><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Rattaché à</th><th style="text-align:center">Actif</th><th></th></tr></thead><tbody>
+        ${COLLABS.map(c=>`<tr>
+          <td class="wrap">${esc(c.name)}</td>
+          <td style="font-size:11px;color:var(--tx2)">${esc(c.email)}</td>
+          <td><select onchange="updateCollab('${c.id}','roleType',this.value)" style="padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)">${['collab','manager','admin'].map(r=>`<option value="${r}"${(c.roleType||'collab')===r?' selected':''}>${roleLabel(r)}</option>`).join('')}</select></td>
+          <td><select onchange="updateCollab('${c.id}','reportsTo',this.value)" style="padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)"><option value="">—</option>${COLLABS.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}"${c.reportsTo===x.id?' selected':''}>${esc(x.name)}</option>`).join('')}</select></td>
+          <td style="text-align:center"><input type="checkbox" ${c.active!==false?'checked':''} onchange="updateCollab('${c.id}','active',this.checked)" style="width:16px;height:16px;cursor:pointer"></td>
+          <td>${c.id==='me'?'':`<button class="btn btn-sm btn-d" onclick="removeCollab('${c.id}')" title="Retirer"><i class="ti ti-trash"></i></button>`}</td>
+        </tr>`).join('')}
+        </tbody></table></div>
+        <div style="font-size:11px;color:var(--tx2);margin-top:10px"><i class="ti ti-info-circle"></i> Un collaborateur voit ses propres tâches <b>plus</b> celles des personnes qui lui sont rattachées (directement ou indirectement). Manager et Admin voient tout.</div>
+      </div>`;
+    }else mgEl.innerHTML='';
+  }
   g('collab-grid').innerHTML=COLLABS.map((c,i)=>{
     const col=AVC[i%AVC.length],mt=entries.filter(e=>e.assignee===c.id);
     const done=mt.filter(e=>e.status==='done').length,wip=mt.filter(e=>e.status==='wip').length,late=mt.filter(e=>isOverdue(e)).length;
     const rate=mt.length?Math.round(done/mt.length*100):0;
-    return`<div class="collab-card">
+    const chief=c.reportsTo?collabName(c.reportsTo):null;
+    return`<div class="collab-card"${c.active===false?' style="opacity:.5"':''}>
       <div class="collab-av" style="background:${col}">${c.initials}</div>
-      <div class="collab-name">${c.name}</div><div class="collab-role">${c.role}</div>
-      <div class="collab-email">${c.email}</div>
+      <div class="collab-name">${esc(c.name)}</div><div class="collab-role">${esc(c.role)} <span style="font-size:9px;color:var(--pur)">· ${roleLabel(c.roleType)}</span></div>
+      <div class="collab-email">${esc(c.email)}</div>
+      ${chief?`<div style="font-size:10px;color:var(--tx3);margin-top:2px"><i class="ti ti-arrow-up" style="font-size:10px"></i> ${esc(chief)}</div>`:''}
       <div class="collab-stats">
         <div class="cstat"><div class="n">${mt.length}</div><div class="l">Total</div></div>
         <div class="cstat"><div class="n" style="color:var(--amb-tx)">${wip}</div><div class="l">Actives</div></div>
