@@ -337,6 +337,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
         <div class="sbar" style="flex:1;min-width:180px;margin:0"><i class="ti ti-search"></i><input type="text" id="comp-search" placeholder="Rechercher…" oninput="renderCompleted()"></div>
         <select id="cf-completed" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
       </div>
+      <div id="dr-completed-bar"></div>
       <div class="card">
         <div class="card-hd"><span class="card-title"><i class="ti ti-checks"></i>Tâches clôturées</span><span style="font-size:12px;color:var(--tx2)" id="comp-count"></span></div>
         <table><thead><tr><th style="width:7%">ID</th><th style="width:22%">Titre</th><th style="width:14%">Collaborateur</th><th style="width:12%">Catégorie</th><th style="width:10%">Créée</th><th style="width:10%">Clôturée</th><th style="width:8%">Cycle</th><th style="width:12%">SLA</th><th style="width:5%"></th></tr></thead>
@@ -364,6 +365,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
         <div class="sbar" style="flex:1;min-width:180px;margin:0"><i class="ti ti-search"></i><input type="text" id="reqd-search" placeholder="Rechercher…" oninput="renderReqDone()"></div>
         <select id="cf-reqdone" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
       </div>
+      <div id="dr-reqdone-bar"></div>
       <div class="card">
         <div class="card-hd"><span class="card-title"><i class="ti ti-mail-check"></i>Demandes traitées ou ignorées</span><span style="font-size:12px;color:var(--tx2)" id="reqd-count"></span></div>
         <table><thead><tr><th style="width:7%">ID</th><th style="width:22%">Objet</th><th style="width:9%">Type</th><th style="width:14%">Assigné à</th><th style="width:11%">Origine</th><th style="width:10%">Statut</th><th style="width:11%">Traitée le</th><th style="width:16%"></th></tr></thead>
@@ -440,6 +442,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
         <div class="fg"><label>Statut</label><select id="rpt-status"><option value="all">Tous</option><option value="done">Terminé</option><option value="wip">En cours</option><option value="new">Nouveau</option><option value="blocked">Bloqué</option></select></div>
         <button class="btn btn-p" onclick="generateReport()"><i class="ti ti-file-analytics"></i> Générer</button>
         <button class="btn" onclick="exportReportCSV()"><i class="ti ti-table-export"></i> Export CSV</button>
+        <button class="btn" onclick="exportReportXLSX()"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
       </div>
       <div id="report-content"></div>
     </div>
@@ -458,9 +461,10 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
           <div style="display:flex;gap:8px">
             <button class="btn btn-sm" id="fixwe-btn" style="display:none" onclick="fixWeekendDues()"><i class="ti ti-calendar-cog"></i> Corriger échéances week-end</button>
             <button class="btn btn-sm btn-d" id="reset-btn" style="display:none" onclick="openResetModal()"><i class="ti ti-alert-triangle"></i> Réinitialiser</button>
-            <button class="btn btn-sm btn-d" onclick="clearLog()"><i class="ti ti-trash"></i> Effacer journal</button>
+            <button class="btn btn-sm btn-d" id="clearlog-btn" style="display:none" onclick="clearLog()"><i class="ti ti-trash"></i> Effacer journal</button>
           </div>
         </div>
+        <div style="padding:0 2px 4px" id="dr-audit-bar"></div>
         <div id="log-wrap" style="max-height:420px;overflow-y:auto"></div>
       </div>
     </div>
@@ -476,6 +480,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
   <div class="fab-opt" onclick="quickCreate('request-int')"><i class="ti ti-message"></i>Demande interne</div>
   <div class="fab-opt" onclick="quickCreate('request-ext')"><i class="ti ti-world"></i>Demande externe</div>
   <div class="fab-opt" onclick="quickCreate('audit-req')"><i class="ti ti-certificate"></i>Audit</div>
+  <div class="fab-opt" onclick="toggleFab();openMeetingModal()"><i class="ti ti-calendar-plus"></i>Réunion</div>
   <div class="fab-opt" onclick="openImportModal()" style="border-color:var(--pur);color:var(--pur)"><i class="ti ti-file-import"></i>Import rapide (OPS::)</div>
 </div>
 <div class="toast" id="toast"><i class="ti ti-check"></i><span id="toast-msg"></span></div>
@@ -686,13 +691,24 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
 <div class="ov" id="ov-reset" onclick="ovClose('ov-reset',event)">
 <div class="modal">
   <div class="mhd"><div class="mtitle" style="color:var(--red-tx,#DC2626)"><i class="ti ti-alert-triangle"></i> Réinitialisation</div><button class="cx" onclick="closeOv('ov-reset')"><i class="ti ti-x"></i></button></div>
-  <div class="reset-danger"><i class="ti ti-alert-triangle" style="font-size:16px"></i><div>Cette action supprime définitivement les données sélectionnées dans Firestore. Il n'existe aucune corbeille — la suppression est <b>irréversible</b>. Un export JSON de sauvegarde est proposé avant.</div></div>
-  <div style="font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:8px">Périmètre à réinitialiser :</div>
-  <label class="reset-chk"><input type="checkbox" id="rs-entries"> Tâches &amp; demandes <span id="rs-entries-n" style="color:var(--tx3);font-size:11px"></span></label>
-  <label class="reset-chk"><input type="checkbox" id="rs-recur"> Historique des occurrences récurrentes</label>
-  <label class="reset-chk"><input type="checkbox" id="rs-meetings"> Réunions</label>
-  <label class="reset-chk"><input type="checkbox" id="rs-refs"> Références documentaires <span id="rs-refs-n" style="color:var(--tx3);font-size:11px"></span></label>
-  <label class="reset-chk"><input type="checkbox" id="rs-logs"> Journal d'audit <span style="color:var(--tx3);font-size:11px">(déconseillé)</span></label>
+  <div class="reset-danger"><i class="ti ti-alert-triangle" style="font-size:16px"></i><div>Cette action supprime définitivement les données sélectionnées dans Firestore. Il n'existe aucune corbeille — la suppression est <b>irréversible</b>. Un export JSON de sauvegarde est proposé avant (c'est ce fichier qui permet de restituer les données ensuite).</div></div>
+  <div style="font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:6px">Portée :</div>
+  <div style="display:flex;gap:16px;margin-bottom:10px;font-size:13px">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="rs-scope" value="all" checked onchange="resetScopeChange()"> Toutes les données</label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="rs-scope" value="collab" onchange="resetScopeChange()"> Un collaborateur</label>
+    <select id="rs-collab" style="padding:5px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit" disabled></select>
+  </div>
+  <div id="rs-scope-all">
+    <div style="font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:8px">Périmètre à réinitialiser :</div>
+    <label class="reset-chk"><input type="checkbox" id="rs-entries"> Tâches &amp; demandes <span id="rs-entries-n" style="color:var(--tx3);font-size:11px"></span></label>
+    <label class="reset-chk"><input type="checkbox" id="rs-recur"> Historique des occurrences récurrentes</label>
+    <label class="reset-chk"><input type="checkbox" id="rs-meetings"> Réunions</label>
+    <label class="reset-chk"><input type="checkbox" id="rs-refs"> Références documentaires <span id="rs-refs-n" style="color:var(--tx3);font-size:11px"></span></label>
+    <label class="reset-chk"><input type="checkbox" id="rs-logs"> Journal d'audit <span style="color:var(--tx3);font-size:11px">(déconseillé)</span></label>
+  </div>
+  <div id="rs-scope-collab" style="display:none">
+    <div class="reset-danger" style="background:#FFFBEB;border-color:#FDE68A;color:#92400E"><i class="ti ti-info-circle"></i><div>Seules les <b>tâches et demandes assignées au collaborateur sélectionné</b> seront supprimées. Les autres données (références, journal, réunions) ne sont pas touchées.</div></div>
+  </div>
   <div style="border-top:1px solid var(--bord);margin:12px 0 10px"></div>
   <label class="reset-chk" style="border-color:#FECACA"><input type="checkbox" id="rs-ack"> Je comprends que cette action est définitive.</label>
   <div class="fg"><label>Pour confirmer, saisissez <b>RESET</b> :</label><input type="text" id="rs-word" placeholder="RESET" autocomplete="off"></div>
@@ -724,6 +740,8 @@ const COLLABS=[
 ];
 // Emails ayant le rôle MANAGER (voient tout + peuvent réinitialiser). Modifiable ici.
 const MANAGERS=['zied.mansouri91@gmail.com'];
+// Comptes autorisés aux actions critiques (Réinitialiser / Effacer journal). Modifiable ici.
+const ADMINS=['zied.mansouri91@gmail.com'];
 // Jours fériés (AAAA-MM-JJ) — laisser vide pour l'instant, extensible plus tard.
 const HOLIDAYS=[];
 
@@ -733,40 +751,45 @@ const isReq=e=>e.type!=='task';
 const reqClosed=e=>REQ_DONE.includes(e.status);
 let entries=[],refs=[],logs=[],curTab='dashboard',curDetId=null,curUser=null,filters={task:'all',req:'all'},charts={},fabOpen=false,reportData=[],unsubEntries=null,collabFilter='',reqView='todo',curRole='collab';
 function isManager(){return curRole==='manager';}
+function isAdmin(){return !!(curUser&&ADMINS.includes(curUser.email));}
 function stepOwners(e){return (e.steps||[]).map(s=>s.owner).filter(Boolean);}
 function canSee(e){if(isManager())return true;const me=myCollabId();if(!me)return false;return e.assignee===me||stepOwners(e).includes(me);}
 function scope(list){return isManager()?list:list.filter(canSee);}
 
-const todayStr=()=>new Date().toISOString().slice(0,10);
+const pad2=n=>String(n).padStart(2,'0');
+const fmtDate=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+const parseDate=s=>{const p=String(s).slice(0,10).split('-').map(Number);return new Date(p[0],p[1]-1,p[2]);}; // minuit LOCAL
+const todayStr=()=>fmtDate(new Date());
 const nowStr=()=>new Date().toLocaleString('fr-FR');
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const trunc=(s,n)=>{const t=s&&s.length>n?s.slice(0,n)+'…':(s||'');return esc(t);};
 const g=id=>document.getElementById(id);
 const bdg=(map,key)=>{const m=map[key]||{l:key,c:'b-new'};return`<span class="badge ${m.c}">${m.l}</span>`;};
-const daysDiff=due=>{if(!due)return null;const d=new Date(due),t=new Date();t.setHours(0,0,0,0);return Math.floor((d-t)/86400000);};
+const daysDiff=due=>{if(!due)return null;const d=parseDate(due),t=parseDate(todayStr());return Math.round((d-t)/86400000);};
 const isOverdue=e=>e.status!=='done'&&e.due&&daysDiff(e.due)<0;
 const isUrgent=e=>{const d=daysDiff(e.due);return e.status!=='done'&&e.due&&d!==null&&d>=0&&d<=3;};
-function addDays(s,n){const d=new Date(s);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
-function addMonths(s,n){const d=new Date(s);d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10);}
+function addDays(s,n){const d=parseDate(s);d.setDate(d.getDate()+n);return fmtDate(d);}
+function addMonths(s,n){const d=parseDate(s);d.setMonth(d.getMonth()+n);return fmtDate(d);}
 function setMonthDay(dateObj,day){const d=new Date(dateObj);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d;}
-function monthlyDate(from,add,md){const f=new Date(from);let y=f.getFullYear(),m=f.getMonth()+add;y+=Math.floor(m/12);m=((m%12)+12)%12;const last=new Date(y,m+1,0).getDate();const day=md?Math.min(md,last):Math.min(f.getDate(),last);return new Date(y,m,day).toISOString().slice(0,10);}
+function monthlyDate(from,add,md){const f=parseDate(from);let y=f.getFullYear(),m=f.getMonth()+add;y+=Math.floor(m/12);m=((m%12)+12)%12;const last=new Date(y,m+1,0).getDate();const day=md?Math.min(md,last):Math.min(f.getDate(),last);return fmtDate(new Date(y,m,day));}
 // Jours ouvrés : samedi/dimanche + jours fériés = OFF
-function isOffDay(d){const x=(typeof d==='string')?new Date(d+'T00:00:00'):new Date(d);const wd=x.getDay();if(wd===0||wd===6)return true;return HOLIDAYS.includes(x.toISOString().slice(0,10));}
-function nextBizDay(dateStr){let d=new Date(dateStr+'T00:00:00');let guard=0;while(isOffDay(d)&&guard++<14)d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
-function bizDaysBetween(a,b){// nb de jours ouvrés entre deux dates (bornes incluses côté fin)
-  let start=new Date((typeof a==='string'?a.slice(0,10):a.toISOString().slice(0,10))+'T00:00:00');
-  let end=new Date((typeof b==='string'?b.slice(0,10):b.toISOString().slice(0,10))+'T00:00:00');
+function isOffDay(d){const x=(typeof d==='string')?parseDate(d):new Date(d);const wd=x.getDay();if(wd===0||wd===6)return true;return HOLIDAYS.includes(fmtDate(x));}
+function nextBizDay(dateStr){let d=parseDate(dateStr);let guard=0;while(isOffDay(d)&&guard++<14)d.setDate(d.getDate()+1);return fmtDate(d);}
+function bizDaysBetween(a,b){// nb de jours ouvrés entre deux dates
+  let start=parseDate(typeof a==='string'?a:fmtDate(a));
+  let end=parseDate(typeof b==='string'?b:fmtDate(b));
   if(end<start){const t=start;start=end;end=t;}
   let n=0;const cur=new Date(start);
   while(cur<end){cur.setDate(cur.getDate()+1);if(!isOffDay(cur))n++;}
   return n;
 }
-function calcNext(r,from){const d=_calcNextRaw(r,from);return nextBizDay(d);}
+function calcNext(r,from){return nextBizDay(_calcNextRaw(r,from));}
+function nextWeekdayDate(fromStr,wd,inclusive){let d=parseDate(fromStr);if(inclusive&&d.getDay()===wd)return fmtDate(d);do{d.setDate(d.getDate()+1);}while(d.getDay()!==wd);return fmtDate(d);}
 function _calcNextRaw(r,from){
   const md=parseInt(r.monthDay)||0;
   if(r.freq==='daily')return addDays(from,1);
-  if(r.freq==='weekly'){const wd=parseInt(r.weekday||1);let d=new Date(from);d.setDate(d.getDate()+1);while(d.getDay()!==wd)d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
-  if(r.freq==='biweekly'){let d=new Date(addDays(from,14));if(md)d=setMonthDay(d,md);return d.toISOString().slice(0,10);}
+  if(r.freq==='weekly'){const wd=parseInt(r.weekday||1);let d=parseDate(from);d.setDate(d.getDate()+1);while(d.getDay()!==wd)d.setDate(d.getDate()+1);return fmtDate(d);}
+  if(r.freq==='biweekly'){let d=parseDate(addDays(from,14));if(md)d=setMonthDay(d,md);return fmtDate(d);}
   if(r.freq==='monthly')return monthlyDate(from,1,md);
   if(r.freq==='quarterly')return monthlyDate(from,3,md);
   if(r.freq==='custom')return addDays(from,parseInt(r.days)||7);
@@ -814,7 +837,7 @@ function cmpDateObj(e){
   if(e.status==='done'){const lm=logDoneMap();if(lm[e.id])return lm[e.id];if(e.updatedAt)return new Date(e.updatedAt);}
   return null;
 }
-function cmpDate(e){const d=cmpDateObj(e);return d?d.toISOString().slice(0,10):'';}
+function cmpDate(e){const d=cmpDateObj(e);return d?fmtDate(d):'';}
 function cycleDays(e){const c=cmpDateObj(e);if(!c||!e.createdAt)return null;const n=bizDaysBetween(e.createdAt,c);return n<0?0:n;}
 function ageDays(e){if(!e.createdAt)return null;return bizDaysBetween(e.createdAt,new Date());}
 function bizOverdue(e){if(!isOverdue(e))return 0;return bizDaysBetween(e.due,new Date());}
@@ -876,11 +899,13 @@ function populateSelects(){
   if(po)po.innerHTML='<option value="">— Aucun —</option>'+COLLABS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const mc=g('mt-collabs');
   if(mc)mc.innerHTML=COLLABS.map(c=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="mt-collab" value="${c.id}" style="width:15px;height:15px"> ${esc(c.name)}</label>`).join('');
+  ['completed','reqdone','audit'].forEach(k=>{const b=g('dr-'+k+'-bar');if(b&&!b.innerHTML)b.innerHTML=rangeBar(k);});
 }
 function applyRoleUI(){
-  const mgr=isManager();
+  const mgr=isManager(),adm=isAdmin();
   ['nav-stats','nav-report','nav-collabs','nav-audit'].forEach(id=>{const el=g(id);if(el)el.style.display=mgr?'':'none';});
-  const rb=g('reset-btn');if(rb)rb.style.display=mgr?'inline-flex':'none';
+  const rb=g('reset-btn');if(rb)rb.style.display=adm?'inline-flex':'none';
+  const cl=g('clearlog-btn');if(cl)cl.style.display=adm?'inline-flex':'none';
   const fb=g('fixwe-btn');if(fb)fb.style.display=mgr?'inline-flex':'none';
   ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(id=>{const s=g(id);if(s)s.style.display=mgr?'':'none';});
   if(!mgr&&['collabs','audit','stats','report'].includes(curTab)){const d=g('nav-dashboard');goTab('dashboard',d);}
@@ -888,6 +913,32 @@ function applyRoleUI(){
 function syncCollabSelects(){['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(sid=>{const s=g(sid);if(s)s.value=collabFilter;});}
 function setCollabFilter(val){collabFilter=val;syncCollabSelects();render();}
 function collabPass(e){return !collabFilter||e.assignee===collabFilter;}
+// FILTRES PAR PLAGE DE DATES
+const dateRanges={completed:{from:'',to:''},reqdone:{from:'',to:''},audit:{from:'',to:''}};
+function inRange(ds,r){if(!ds)return!(r.from||r.to);return(!r.from||ds>=r.from)&&(!r.to||ds<=r.to);}
+function setRange(key,which,val){dateRanges[key][which]=val;if(key==='completed')renderCompleted();else if(key==='reqdone')renderReqDone();else if(key==='audit')renderAudit();}
+function setRangePreset(key,preset){
+  const t=new Date();let from='';const to=todayStr();
+  if(preset==='7'){const d=new Date();d.setDate(d.getDate()-6);from=fmtDate(d);}
+  else if(preset==='30'){const d=new Date();d.setDate(d.getDate()-29);from=fmtDate(d);}
+  else if(preset==='month'){from=fmtDate(new Date(t.getFullYear(),t.getMonth(),1));}
+  else if(preset==='clear'){from='';}
+  dateRanges[key].from=from;dateRanges[key].to=(preset==='clear'?'':to);
+  g('dr-'+key+'-from').value=dateRanges[key].from;g('dr-'+key+'-to').value=dateRanges[key].to;
+  if(key==='completed')renderCompleted();else if(key==='reqdone')renderReqDone();else if(key==='audit')renderAudit();
+}
+function rangeBar(key){
+  return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
+    <span style="color:var(--tx2)"><i class="ti ti-calendar-search" style="font-size:13px;vertical-align:-2px"></i> Du</span>
+    <input type="date" id="dr-${key}-from" onchange="setRange('${key}','from',this.value)" style="padding:5px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit">
+    <span style="color:var(--tx2)">au</span>
+    <input type="date" id="dr-${key}-to" onchange="setRange('${key}','to',this.value)" style="padding:5px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit">
+    <button class="chip" onclick="setRangePreset('${key}','7')">7 j</button>
+    <button class="chip" onclick="setRangePreset('${key}','30')">30 j</button>
+    <button class="chip" onclick="setRangePreset('${key}','month')">Ce mois</button>
+    <button class="chip" onclick="setRangePreset('${key}','clear')">Tout</button>
+  </div>`;
+}
 
 // FIRESTORE
 function subscribeEntries(){
@@ -896,8 +947,11 @@ function subscribeEntries(){
     entries=snap.docs.map(d=>({id:d.id,...d.data()}));
     entries.forEach(e=>{if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.recur)e.recur={enabled:false};if(!e.steps)e.steps=[];if(!e.assignHist)e.assignHist=[];});
     render();updateBadges();updateAlertBanner();
+    if(g('ov-today')&&g('ov-today').classList.contains('open'))openTodayModal();
+    if(!weekendFixDone&&isManager()){weekendFixDone=true;autoFixWeekend();}
   },err=>showToast('Erreur Firebase: '+err.message));
 }
+let weekendFixDone=false;
 function clean(o){if(Array.isArray(o))return o.map(clean);if(o&&typeof o==='object'){const r={};for(const k in o){if(o[k]!==undefined)r[k]=clean(o[k]);}return r;}return o;}
 async function save(data,id){const now=new Date().toISOString();data=clean(data);if(id){await db.collection('entries').doc(id).set({...data,updatedAt:now},{merge:true});}else{const r=await db.collection('entries').add({...data,createdAt:now,updatedAt:now});return r.id;}}
 async function del(id){await db.collection('entries').doc(id).delete();}
@@ -908,8 +962,8 @@ async function addLog(type,action,ref){const e={ts:nowStr(),type,action,ref,user
 // RECURRENCE
 async function spawnNext(e){
   if(!e.recur||!e.recur.enabled)return null;
-  const baseDue=e.due||todayStr(),nextDue=calcNext(e.recur,baseDue);
-  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',recurParentId:e.id,
+  const t=todayStr(),baseDue=(e.due&&e.due>t)?e.due:t,nextDue=calcNext(e.recur,baseDue);
+  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',recurParentId:e.id,seriesId:seriesSig(e)||undefined,
     comments:[{ts:nowStr(),text:`Nouvelle occurrence depuis ${e.id} (clôturé le ${todayStr()}).`,user:curUser?curUser.email:'?'}],attachments:[],steps:[]};
   const nid=await save(ne,null);
   await db.collection('recurHist').add({parentId:e.id,newId:nid,title:e.title,freq:freqLbl(e.recur),closedAt:todayStr(),parentDue:e.due,nextDue});
@@ -1028,6 +1082,7 @@ function renderCompleted(){
   const q=(g('comp-search').value||'').toLowerCase();
   let list=scope(entries).filter(e=>isTask(e)&&e.status==='done');
   if(collabFilter)list=list.filter(collabPass);
+  list=list.filter(e=>inRange(cmpDate(e),dateRanges.completed));
   if(q)list=list.filter(e=>(e.title+e.cat+collabName(e.assignee)).toLowerCase().includes(q));
   list.sort((a,b)=>{const ca=cmpDateObj(a),cb=cmpDateObj(b);return (cb?+cb:0)-(ca?+ca:0);});
   g('comp-count').textContent=list.length+' tâche(s)';
@@ -1072,6 +1127,7 @@ function renderReqDone(){
   const q=(g('reqd-search').value||'').toLowerCase();
   let list=scope(entries).filter(e=>isReq(e)&&reqClosed(e));
   if(collabFilter)list=list.filter(collabPass);
+  list=list.filter(e=>inRange(cmpDate(e),dateRanges.reqdone));
   if(q)list=list.filter(e=>(e.title+e.ref+e.origin+collabName(e.assignee)).toLowerCase().includes(q));
   list.sort((a,b)=>{const ca=cmpDateObj(a),cb=cmpDateObj(b);return (cb?+cb:0)-(ca?+ca:0);});
   const cnt=g('reqd-count');if(cnt)cnt.textContent=list.length+' demande(s)';
@@ -1189,8 +1245,11 @@ function renderAudit(){
   g('a-attach').textContent=entries.reduce((a,e)=>a+(e.attachments||[]).length,0);
   g('a-docs').textContent=refs.length;
   const c=g('log-wrap');
-  if(!logs.length){c.innerHTML='<div class="empty">Journal vide.</div>';return;}
-  c.innerHTML=logs.slice(0,100).map(l=>`<div class="lg-row">
+  const r=dateRanges.audit;
+  let lg=logs;
+  if(r.from||r.to)lg=logs.filter(l=>{const d=parseFrTs(l.ts);return d&&inRange(fmtDate(d),r);});
+  if(!lg.length){c.innerHTML='<div class="empty">Aucune entrée de journal'+((r.from||r.to)?' sur cette période.':'.')+'</div>';return;}
+  c.innerHTML=lg.slice(0,100).map(l=>`<div class="lg-row">
     <span class="lg-ts">${esc(l.ts)}</span>
     <span style="flex-shrink:0;width:80px"><span class="badge b-rev" style="font-size:9px">${esc(l.type)}</span></span>
     <span class="lg-act">${esc(l.action)}${l.user?` <span style="color:var(--tx3);font-size:10px">(${esc(l.user)})</span>`:''}</span>
@@ -1344,6 +1403,20 @@ function exportReportCSV(){
   const rows=reportData.map(e=>[e.id,e.title,e.type,e.cat,e.status,e.priority,collabName(e.assignee),e.pct||0,e.due||'',e.ref||'',e.createdAt?e.createdAt.slice(0,10):''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   dlFile('\uFEFF'+[h.join(','),...rows].join('\n'),'text/csv','rapport_'+todayStr()+'.csv');
 }
+function exportReportXLSX(){
+  if(!reportData.length){alert('Générez d\'abord un rapport.');return;}
+  if(typeof XLSX==='undefined')return alert('Bibliothèque Excel non chargée.');
+  const start=g('rpt-start').value||'—',end=g('rpt-end').value||'—';
+  const detail=reportData.map(e=>({ID:e.id,Titre:e.title,Type:(TM[e.type]?TM[e.type].l:e.type),Catégorie:e.cat||'',Statut:(SM[e.status]?SM[e.status].l:e.status),Priorité:(PM[e.priority]?PM[e.priority].l:e.priority),'Assigné à':collabName(e.assignee),'Avct %':e.pct||0,Échéance:e.due||'','Créé le':e.createdAt?e.createdAt.slice(0,10):'','Clôturé le':cmpDate(e)||'','Cycle (j ouvr.)':cycleDays(e)==null?'':cycleDays(e),SLA:(slaMet(e)==null?'':(slaMet(e)?'Respecté':'Dépassé')),Référence:e.ref||'',Origine:e.origin||''}));
+  const byStatus={},byCat={},byCollab={};
+  reportData.forEach(e=>{const s=SM[e.status]?SM[e.status].l:e.status;byStatus[s]=(byStatus[s]||0)+1;byCat[e.cat||'—']=(byCat[e.cat||'—']||0)+1;const c=collabName(e.assignee);byCollab[c]=(byCollab[c]||0)+1;});
+  const synth=[{Indicateur:'Période',Valeur:start+' → '+end},{Indicateur:'Total entrées',Valeur:reportData.length},{Indicateur:'Terminées',Valeur:reportData.filter(e=>e.status==='done').length},{Indicateur:'En retard',Valeur:reportData.filter(e=>isOverdue(e)).length},{Indicateur:'',Valeur:''},{Indicateur:'— Par statut —',Valeur:''},...Object.entries(byStatus).map(([k,v])=>({Indicateur:k,Valeur:v})),{Indicateur:'',Valeur:''},{Indicateur:'— Par catégorie —',Valeur:''},...Object.entries(byCat).map(([k,v])=>({Indicateur:k,Valeur:v})),{Indicateur:'',Valeur:''},{Indicateur:'— Par collaborateur —',Valeur:''},...Object.entries(byCollab).map(([k,v])=>({Indicateur:k,Valeur:v}))];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(synth),'Synthèse');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(detail.length?detail:[{Info:'Aucune donnée'}]),'Détail');
+  XLSX.writeFile(wb,'rapport_'+(g('rpt-start').value||todayStr())+'_'+(g('rpt-end').value||todayStr())+'.xlsx');
+  addLog('Export','Export Excel rapport période','—');
+}
 
 // DETAIL
 function openDetail(id){
@@ -1491,8 +1564,11 @@ async function reopen(id){
   try{await save({status:'new',completedAt:''},id);await addLog(isTask(e)?'Tâche':'Demande',`Réouverture : "${e.title}"`,id);showToast('↩ Rouvert');}
   catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
 }
+function seriesSig(e){if(!e||!e.recur||!e.recur.enabled)return null;return e.seriesId||('sig:'+(e.title||'').trim().toLowerCase()+'|'+e.recur.freq+'|'+(e.assignee||''));}
+function closedTodaySibling(e){const sig=seriesSig(e);if(!sig)return false;const ds=todayStr();return entries.some(x=>x.id!==e.id&&x.status==='done'&&cmpDate(x)===ds&&seriesSig(x)===sig);}
 async function quickDone(id){
   const e=entries.find(x=>x.id===id);if(!e||e.status==='done')return;
+  if(e.recur&&e.recur.enabled&&closedTodaySibling(e)){alert('Cette tâche récurrente a déjà été traitée aujourd\'hui. Une seule clôture par jour est autorisée.');return;}
   const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
   await save(upd,id);
   await addLog('Tâche',`Clôturé : "${e.title}"`,id);
@@ -1508,6 +1584,7 @@ async function delRef(id){
   await addLog('Suppression',`Référence supprimée : "${r?r.title:'?'}"`,id);renderRefs();
 }
 async function clearLog(){
+  if(!isAdmin())return alert('Action réservée au compte administrateur.');
   if(!confirm('Effacer le journal ? Action irréversible.'))return;
   const snap=await db.collection('logs').get();const batch=db.batch();snap.docs.forEach(d=>batch.delete(d.ref));await batch.commit();logs=[];renderAudit();
 }
@@ -1559,9 +1636,14 @@ async function saveEntry(){
   const editId=g('f-eid').value,recurOn=g('f-rec').checked,freq=g('f-freq').value;
   const recur=recurOn?{enabled:true,freq,days:freq==='custom'?parseInt(g('f-days').value)||7:(FM[freq]?FM[freq].d:7),weekday:freq==='weekly'?parseInt(g('f-weekday').value):null,monthDay:(freq==='biweekly'||freq==='monthly'||freq==='quarterly')?(parseInt(g('f-monthday').value)||1):null,time:g('f-time').value||''}:{enabled:false};
   const data={title,type:g('f-type').value,cat:g('f-cat').value,priority:g('f-pri').value,status:g('f-stat').value,pct:parseInt(g('f-pct').value)||0,due:g('f-due').value,ref:g('f-ref').value,origin:g('f-origin').value,desc:g('f-desc').value,assignee:g('f-assignee').value,recur};
+  const prevEnt=editId?entries.find(x=>x.id===editId):null;
+  // Récurrence hebdo : caler l'échéance sur le jour de semaine choisi (aujourd'hui inclus)
+  if(recurOn&&freq==='weekly'){const wd=parseInt(g('f-weekday').value);data.due=nextWeekdayDate(data.due||todayStr(),wd,true);}
+  // Identifiant de série stable (pour l'anti-double-traitement)
+  if(recurOn)data.seriesId=(prevEnt&&prevEnt.seriesId)||('S'+Date.now().toString(36)+Math.random().toString(36).slice(2,7));
   let dueShifted=false;
   if(data.due){const nd=nextBizDay(data.due);if(nd!==data.due){dueShifted=true;data.due=nd;}}
-  if(data.status==='done'){const prev=editId?entries.find(x=>x.id===editId):null;data.completedAt=(prev&&prev.completedAt)?prev.completedAt:new Date().toISOString();}else{data.completedAt='';}
+  if(data.status==='done'){data.completedAt=(prevEnt&&prevEnt.completedAt)?prevEnt.completedAt:new Date().toISOString();}else{data.completedAt='';}
   try{
     if(editId){await save(data,editId);await addLog('Modification',`Mise à jour : "${title}"`,editId);}
     else{const id=await save({...data,comments:[],attachments:[],steps:[]},null);await addLog('Tâche',`Création : "${title}"${recurOn?' ['+freqLbl(recur)+']':''}`,id);}
@@ -1690,18 +1772,11 @@ function showDiagram(id){
   g('ov-diagram').classList.add('open');
 }
 
-// TODAY
-function matchesTodayRecur(e){
-  if(!e.recur||!e.recur.enabled)return false;
-  const t=new Date(),ds=todayStr();
-  if(e.due===ds)return true;
-  const f=e.recur.freq;
-  if(f==='daily')return !isOffDay(t);
-  if(f==='weekly')return t.getDay()===parseInt(e.recur.weekday);
-  if(f==='biweekly'||f==='monthly'||f==='quarterly')return t.getDate()===parseInt(e.recur.monthDay);
-  return false;
+// TODAY — uniquement MES tâches/demandes non traitées à échéance aujourd'hui
+function todayEntries(){
+  const ds=todayStr(),me=myCollabId();
+  return entries.filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due===ds&&e.assignee&&e.assignee===me);
 }
-function todayEntries(){const ds=todayStr();return scope(entries).filter(e=>e.status!=='done'&&!reqClosed(e)&&(e.due===ds||matchesTodayRecur(e)));}
 function todayMeetings(){const ds=todayStr();return meetings.filter(m=>m.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
 function updateTodayCount(){const el=g('today-cnt');if(el)el.textContent=todayEntries().length+todayMeetings().length;const b=g('today-btn');if(b)b.style.display=curUser?'inline-flex':'none';}
 function openTodayModal(){
@@ -1717,35 +1792,58 @@ function openTodayModal(){
   g('ov-today').classList.add('open');
 }
 
-// RESET (manager)
+// RESET (admin uniquement)
+function resetScopeChange(){
+  const mode=(document.querySelector('input[name="rs-scope"]:checked')||{}).value;
+  const isC=mode==='collab';
+  g('rs-collab').disabled=!isC;
+  g('rs-scope-all').style.display=isC?'none':'';
+  g('rs-scope-collab').style.display=isC?'':'none';
+}
 function openResetModal(){
-  if(!isManager())return;
+  if(!isAdmin())return alert('Action réservée au compte administrateur.');
   g('rs-entries-n').textContent='('+entries.length+')';
   g('rs-refs-n').textContent='('+refs.length+')';
   ['rs-entries','rs-recur','rs-meetings','rs-refs','rs-logs','rs-ack'].forEach(id=>{const el=g(id);if(el)el.checked=false;});
+  const rc=g('rs-collab');rc.innerHTML=COLLABS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  const allRadio=document.querySelector('input[name="rs-scope"][value="all"]');if(allRadio)allRadio.checked=true;
+  resetScopeChange();
   g('rs-word').value='';
   g('ov-reset').classList.add('open');
 }
 async function confirmReset(){
-  if(!isManager())return alert('Action réservée au manager.');
+  if(!isAdmin())return alert('Action réservée au compte administrateur.');
   if(!g('rs-ack').checked)return alert('Cochez la case « Je comprends ».');
   if(g('rs-word').value.trim()!=='RESET')return alert('Saisissez RESET pour confirmer.');
-  const cols=[];
-  if(g('rs-entries').checked)cols.push('entries');
-  if(g('rs-recur').checked)cols.push('recurHist');
-  if(g('rs-meetings').checked)cols.push('meetings');
-  if(g('rs-refs').checked)cols.push('refs');
-  if(g('rs-logs').checked)cols.push('logs');
-  if(!cols.length)return alert('Sélectionnez au moins un périmètre.');
-  if(!confirm('Dernière confirmation : supprimer définitivement '+cols.length+' catégorie(s) ? Cette action est irréversible.'))return;
+  const mode=(document.querySelector('input[name="rs-scope"]:checked')||{}).value;
   try{
+    if(mode==='collab'){
+      const cid=g('rs-collab').value,cname=collabName(cid);
+      const targets=entries.filter(e=>e.assignee===cid);
+      if(!targets.length)return alert('Aucune tâche/demande assignée à '+cname+'.');
+      if(!confirm('Supprimer définitivement '+targets.length+' entrée(s) de '+cname+' ? Irréversible.'))return;
+      let batch=db.batch(),n=0;
+      for(const e of targets){batch.delete(db.collection('entries').doc(e.id));n++;if(n%400===0){await batch.commit();batch=db.batch();}}
+      await batch.commit();
+      await addLog('Réinitialisation','Données supprimées pour '+cname+' ('+n+' entrées)','—');
+      closeOv('ov-reset');showToast('✓ '+n+' entrée(s) de '+cname+' supprimée(s)');
+      return;
+    }
+    const cols=[];
+    if(g('rs-entries').checked)cols.push('entries');
+    if(g('rs-recur').checked)cols.push('recurHist');
+    if(g('rs-meetings').checked)cols.push('meetings');
+    if(g('rs-refs').checked)cols.push('refs');
+    if(g('rs-logs').checked)cols.push('logs');
+    if(!cols.length)return alert('Sélectionnez au moins un périmètre.');
+    if(!confirm('Dernière confirmation : supprimer définitivement '+cols.length+' catégorie(s) pour TOUS ? Cette action est irréversible.'))return;
     for(const c of cols){
       const snap=await db.collection(c).get();
       let batch=db.batch(),n=0;
       for(const d of snap.docs){batch.delete(d.ref);n++;if(n%400===0){await batch.commit();batch=db.batch();}}
       await batch.commit();
     }
-    await addLog('Réinitialisation','Périmètres : '+cols.join(', '),'—');
+    await addLog('Réinitialisation','Périmètres (tous) : '+cols.join(', '),'—');
     closeOv('ov-reset');showToast('✓ Réinitialisation effectuée');
   }catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
 }
@@ -1828,6 +1926,15 @@ async function createImport(){
 }
 
 // CORRECTION RÉTROACTIVE DES ÉCHÉANCES WEEK-END (manager)
+async function autoFixWeekend(){
+  const targets=entries.filter(e=>e.due&&e.status!=='done'&&!reqClosed(e)&&isOffDay(e.due));
+  if(!targets.length)return;
+  let n=0;
+  try{for(const e of targets){await save({due:nextBizDay(e.due)},e.id);n++;}
+    await addLog('Correction',`Auto : ${n} échéance(s) week-end reportée(s) au jour ouvré`,'—');
+    showToast(n+' échéance(s) week-end corrigée(s) automatiquement');
+  }catch(err){}
+}
 async function fixWeekendDues(){
   if(!isManager())return alert('Réservé au manager.');
   const targets=entries.filter(e=>e.due&&e.status!=='done'&&!reqClosed(e)&&isOffDay(e.due));
