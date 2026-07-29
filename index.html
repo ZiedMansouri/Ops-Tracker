@@ -788,10 +788,10 @@ function isAdmin(){const m=meCollab();return !!(m&&m.roleType==='admin')||!!(cur
 function isManager(){const m=meCollab();return isAdmin()||!!(m&&m.roleType==='manager')||!!(curUser&&MANAGERS.includes(curUser.email));}
 function childrenOf(cid){return COLLABS.filter(c=>c.reportsTo===cid).map(c=>c.id);}
 function descendantsOf(cid){const out=[],stack=[...childrenOf(cid)];let guard=0;while(stack.length&&guard++<500){const x=stack.pop();if(out.includes(x))continue;out.push(x);childrenOf(x).forEach(k=>stack.push(k));}return out;}
-function myVisibleCids(){const me=myCollabId();if(!me)return[];return[me,...descendantsOf(me)];}
+function myVisibleCids(){const me=myCollabId();if(!me)return[];const m=meCollab();if(m&&m.roleType==='manager')return[me,...descendantsOf(me)];return[me];}
 function stepOwners(e){return (e.steps||[]).map(s=>s.owner).filter(Boolean);}
-function canSee(e){if(isManager())return true;const vis=myVisibleCids();if(!vis.length)return false;if(vis.includes(e.assignee))return true;return stepOwners(e).some(o=>vis.includes(o));}
-function scope(list){return isManager()?list:list.filter(canSee);}
+function canSee(e){if(isAdmin())return true;const vis=myVisibleCids();if(!vis.length)return false;if(vis.includes(e.assignee))return true;return stepOwners(e).some(o=>vis.includes(o));}
+function scope(list){return isAdmin()?list:list.filter(canSee);}
 
 const pad2=n=>String(n).padStart(2,'0');
 const fmtDate=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
@@ -995,12 +995,12 @@ function populateSelects(){
 }
 function applyRoleUI(){
   const mgr=isManager(),adm=isAdmin();
-  ['nav-stats','nav-report','nav-collabs','nav-audit'].forEach(id=>{const el=g(id);if(el)el.style.display=mgr?'':'none';});
+  ['nav-stats','nav-report','nav-collabs','nav-audit'].forEach(id=>{const el=g(id);if(el)el.style.display=adm?'':'none';});
   const rb=g('reset-btn');if(rb)rb.style.display=adm?'inline-flex':'none';
   const cl=g('clearlog-btn');if(cl)cl.style.display=adm?'inline-flex':'none';
-  const fb=g('fixwe-btn');if(fb)fb.style.display=mgr?'inline-flex':'none';
+  const fb=g('fixwe-btn');if(fb)fb.style.display=adm?'inline-flex':'none';
   ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(id=>{const s=g(id);if(s)s.style.display=mgr?'':'none';});
-  if(!mgr&&['collabs','audit','stats','report'].includes(curTab)){const d=g('nav-dashboard');goTab('dashboard',d);}
+  if(!adm&&['collabs','audit','stats','report'].includes(curTab)){const d=g('nav-dashboard');goTab('dashboard',d);}
 }
 function syncCollabSelects(){['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(sid=>{const s=g(sid);if(s)s.value=collabFilter;});}
 function setCollabFilter(val){collabFilter=val;syncCollabSelects();render();}
@@ -1040,7 +1040,7 @@ function subscribeEntries(){
     entries.forEach(e=>{if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.recur)e.recur={enabled:false};if(!e.steps)e.steps=[];if(!e.assignHist)e.assignHist=[];});
     render();updateBadges();updateAlertBanner();
     if(g('ov-today')&&g('ov-today').classList.contains('open'))openTodayModal();
-    if(!weekendFixDone&&isManager()){weekendFixDone=true;autoFixWeekend();}
+    if(!weekendFixDone&&isAdmin()){weekendFixDone=true;autoFixWeekend();}
   },err=>showToast('Erreur Firebase: '+err.message));
 }
 let weekendFixDone=false;
@@ -2062,7 +2062,7 @@ async function autoFixWeekend(){
   }catch(err){}
 }
 async function fixWeekendDues(){
-  if(!isManager())return alert('Réservé au manager.');
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
   const targets=entries.filter(e=>e.due&&e.status!=='done'&&!reqClosed(e)&&isOffDay(e.due));
   if(!targets.length)return alert('Aucune échéance tombant un samedi/dimanche à corriger.');
   if(!confirm(targets.length+' entrée(s) ont une échéance un week-end. Les reporter au lundi (jour ouvré suivant) ?'))return;
