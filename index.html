@@ -447,10 +447,15 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
     </div>
 
     <div id="tab-alerts" style="display:none">
+      <div class="card" style="border-left:4px solid var(--red-tx,#DC2626);margin-bottom:16px">
+        <div class="card-hd"><span class="card-title" style="color:var(--red-tx,#DC2626)"><i class="ti ti-alarm"></i>En retard (échéance dépassée)</span><span id="alert-late-n" style="font-size:12px;color:var(--tx2)"></span></div>
+        <table><thead><tr><th style="width:7%">ID</th><th style="width:24%">Titre</th><th style="width:11%">Statut</th><th style="width:9%">Priorité</th><th style="width:13%">Assigné</th><th style="width:10%">Échéance</th><th style="width:9%">Retard</th><th style="width:9%">Type</th><th style="width:8%"></th></tr></thead>
+        <tbody id="alert-late"></tbody></table>
+      </div>
       <div class="card" style="border-left:4px solid var(--org)">
-        <div class="card-hd"><span class="card-title" style="color:#C2410C"><i class="ti ti-alarm"></i>Échéances dépassées ou dans moins de 3 jours</span></div>
-        <table><thead><tr><th style="width:7%">ID</th><th style="width:23%">Titre</th><th style="width:11%">Statut</th><th style="width:9%">Priorité</th><th style="width:13%">Assigné</th><th style="width:10%">Échéance</th><th style="width:9%">Retard</th><th style="width:10%">Type</th><th style="width:8%"></th></tr></thead>
-        <tbody id="alert-body"></tbody></table>
+        <div class="card-hd"><span class="card-title" style="color:#C2410C"><i class="ti ti-hourglass-high"></i>À venir (échéance ≤ 3 jours)</span><span id="alert-soon-n" style="font-size:12px;color:var(--tx2)"></span></div>
+        <table><thead><tr><th style="width:7%">ID</th><th style="width:24%">Titre</th><th style="width:11%">Statut</th><th style="width:9%">Priorité</th><th style="width:13%">Assigné</th><th style="width:10%">Échéance</th><th style="width:9%">Délai</th><th style="width:9%">Type</th><th style="width:8%"></th></tr></thead>
+        <tbody id="alert-soon"></tbody></table>
       </div>
     </div>
 
@@ -674,6 +679,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
   <div class="fg"><label>Participants externes (séparés par des virgules)</label><input type="text" id="mt-ext" placeholder="BCT, partenaire X, cabinet Y…"></div>
   <div class="fg"><label>Ordre du jour / notes</label><textarea id="mt-notes" placeholder="Points à aborder…"></textarea></div>
   <div class="rec-toggle"><input type="checkbox" id="mt-alert" checked><label for="mt-alert"><i class="ti ti-bell" style="vertical-align:-2px;margin-right:3px"></i>Alerte 1 heure avant</label></div>
+  <div class="fg" style="margin-top:10px"><label>Statut</label><select id="mt-status"><option value="">Prévue</option><option value="done">Faite</option><option value="delayed">Retardée</option></select></div>
   <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
     <button class="btn btn-d btn-sm" id="mt-del" style="display:none" onclick="deleteMeeting()"><i class="ti ti-trash"></i> Supprimer</button>
     <button class="btn" onclick="closeOv('ov-meeting')">Annuler</button>
@@ -1039,7 +1045,7 @@ function subscribeEntries(){
     entries=snap.docs.map(d=>({id:d.id,...d.data()}));
     entries.forEach(e=>{if(!e.comments)e.comments=[];if(!e.attachments)e.attachments=[];if(!e.recur)e.recur={enabled:false};if(!e.steps)e.steps=[];if(!e.assignHist)e.assignHist=[];});
     render();updateBadges();updateAlertBanner();
-    if(g('ov-today')&&g('ov-today').classList.contains('open'))openTodayModal();
+    if(g('ov-today')&&g('ov-today').classList.contains('open'))openTodayModal(true);
     if(!weekendFixDone&&isAdmin()){weekendFixDone=true;autoFixWeekend();}
   },err=>showToast('Erreur Firebase: '+err.message));
 }
@@ -1151,7 +1157,7 @@ function renderTasks(){
   if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty"><i class="ti ti-filter-off"></i>Aucune tâche.</td></tr>';return;}
   tb.innerHTML=list.map(e=>{const od=isOverdue(e),ns=(e.steps||[]).length;return`<tr class="row${od?' od':''}" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
-    <td class="wrap" title="${esc(e.title)}">${esc(e.title)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}${recBadge(e)}</td>
+    <td class="wrap" title="${esc(e.title)}">${esc(e.title)}${od?'<span class="badge b-od" style="margin-left:4px;font-size:9px">⚠</span>':''}${recBadge(e)}${archivedToday(e)?'<span class="badge b-done" style="margin-left:4px;font-size:9px">✓ fait auj.</span>':''}</td>
     <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
     <td><span class="tag">${e.cat||'—'}</span></td>${dueCell(e)}
@@ -1194,7 +1200,7 @@ function renderCompleted(){
     <td style="font-size:11px;color:var(--grn-tx);font-weight:600">${cmpDate(e)||'—'}</td>
     <td style="font-size:11px;font-family:'DM Mono',monospace">${cyc==null?'—':cyc+'j'}</td>
     <td>${slaCell}</td>
-    <td><button class="btn btn-sm" onclick="event.stopPropagation();reopen('${e.id}')" title="Rouvrir"><i class="ti ti-arrow-back-up"></i></button></td></tr>`;}).join('');
+    <td>${e.archivedCopy?`<button class="btn btn-sm btn-d" onclick="event.stopPropagation();deleteArchive('${e.id}')" title="Supprimer cette archive"><i class="ti ti-trash"></i></button>`:`<button class="btn btn-sm" onclick="event.stopPropagation();reopen('${e.id}')" title="Rouvrir"><i class="ti ti-arrow-back-up"></i></button>`}</td></tr>`;}).join('');
 }
 
 function renderReqs(){
@@ -1327,18 +1333,29 @@ function renderCollabs(){
 }
 
 function renderAlerts(){
-  const list=scope(entries).filter(e=>(isOverdue(e)||isUrgent(e))&&e.status!=='done').sort((a,b)=>daysDiff(a.due)-daysDiff(b.due));
-  const tb=g('alert-body');
-  if(!list.length){tb.innerHTML='<tr><td colspan="9" class="empty"><i class="ti ti-check"></i>Aucune échéance urgente.</td></tr>';return;}
-  tb.innerHTML=list.map(e=>{const d=daysDiff(e.due);const ret=d<0?`<span style="color:#C2410C;font-weight:600">${bizOverdue(e)}j ouvr.</span>`:`<span style="color:#D97706">Dans ${d}j</span>`;
-  return`<tr class="row od" onclick="openDetail('${e.id}')">
+  const act=scope(entries).filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due);
+  const late=act.filter(e=>daysDiff(e.due)<0).sort((a,b)=>daysDiff(a.due)-daysDiff(b.due));
+  const soon=act.filter(e=>{const d=daysDiff(e.due);return d>=0&&d<=3;}).sort((a,b)=>daysDiff(a.due)-daysDiff(b.due));
+  const rowLate=e=>`<tr class="row od" onclick="openDetail('${e.id}')">
+    <td style="font-size:10px;font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
+    <td class="wrap">${esc(e.title)}${recBadge(e)}</td>
+    <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
+    <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
+    <td style="font-size:11px;color:var(--red-tx,#DC2626);font-weight:600">${e.due}</td>
+    <td><span style="color:var(--red-tx,#DC2626);font-weight:600">${bizOverdue(e)}j ouvr.</span></td><td>${bdg(TM,e.type)}</td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;
+  const rowSoon=e=>{const d=daysDiff(e.due);return`<tr class="row" onclick="openDetail('${e.id}')">
     <td style="font-size:10px;font-family:'DM Mono',monospace">${e.id.slice(-7)}</td>
     <td class="wrap">${esc(e.title)}${recBadge(e)}</td>
     <td>${bdg(SM,e.status)}</td><td>${bdg(PM,e.priority)}</td>
     <td>${collabAv(e.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(e.assignee),9)}</span></td>
     <td style="font-size:11px;color:#C2410C;font-weight:600">${e.due}</td>
-    <td>${ret}</td><td>${bdg(TM,e.type)}</td>
-    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;}).join('');
+    <td><span style="color:#D97706">${d===0?"Aujourd'hui":'Dans '+d+'j'}</span></td><td>${bdg(TM,e.type)}</td>
+    <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`;};
+  g('alert-late-n').textContent=late.length+' en retard';
+  g('alert-soon-n').textContent=soon.length+' à venir';
+  g('alert-late').innerHTML=late.length?late.map(rowLate).join(''):'<tr><td colspan="9" class="empty"><i class="ti ti-check"></i>Aucune tâche en retard.</td></tr>';
+  g('alert-soon').innerHTML=soon.length?soon.map(rowSoon).join(''):'<tr><td colspan="9" class="empty"><i class="ti ti-check"></i>Aucune échéance imminente.</td></tr>';
 }
 
 function renderRefs(){
@@ -1692,17 +1709,39 @@ async function reopen(id){
 }
 function seriesSig(e){if(!e||!e.recur||!e.recur.enabled)return null;return e.seriesId||('sig:'+(e.title||'').trim().toLowerCase()+'|'+e.recur.freq+'|'+(e.assignee||''));}
 function closedTodaySibling(e){const sig=seriesSig(e);if(!sig)return false;const ds=todayStr();return entries.some(x=>x.id!==e.id&&x.status==='done'&&cmpDate(x)===ds&&seriesSig(x)===sig);}
+function archivedToday(e){const ds=todayStr();return entries.some(x=>x.archivedCopy&&x.sourceId===e.id&&cmpDate(x)===ds);}
+async function archiveTaskDone(e){
+  const copy=clean({title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'done',pct:100,due:e.due||'',ref:e.ref||'',origin:e.origin||'',desc:e.desc||'',assignee:e.assignee||'',recur:{enabled:false},
+    comments:[...(e.comments||[]),{ts:nowStr(),text:'Marqué fait (copie archivée).',user:curUser?curUser.email:'?'}],attachments:(e.attachments||[]),steps:(e.steps||[]),
+    completedAt:new Date().toISOString(),createdAt:e.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),archivedCopy:true,sourceId:e.id});
+  const r=await db.collection('entries').add(copy);
+  await addLog('Tâche',`Fait (archivé) : "${e.title}"`,e.id);
+  return r.id;
+}
 async function quickDone(id){
-  const e=entries.find(x=>x.id===id);if(!e||e.status==='done')return;
-  if(e.recur&&e.recur.enabled&&closedTodaySibling(e)){alert('Cette tâche récurrente a déjà été traitée aujourd\'hui. Une seule clôture par jour est autorisée.');return;}
-  const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
-  await save(upd,id);
-  await addLog('Tâche',`Clôturé : "${e.title}"`,id);
-  if(e.recur&&e.recur.enabled){const nid=await spawnNext({...e,...upd});showToast(nid?`✓ Clôturé — Nouvelle occurrence créée`:'✓ Clôturé — Récurrence terminée.');}
-  else showToast('✓ Clôturé');
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  // Demandes : clôture classique (sort de la liste)
+  if(isReq(e)){if(e.status==='done')return;const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};await save(upd,id);await addLog('Demande',`Clôturé : "${e.title}"`,id);showToast('✓ Clôturé');return;}
+  // Tâche récurrente : clôture + nouvelle occurrence
+  if(e.recur&&e.recur.enabled){
+    if(e.status==='done')return;
+    if(closedTodaySibling(e)){alert('Cette tâche récurrente a déjà été traitée aujourd\'hui. Une seule clôture par jour est autorisée.');return;}
+    const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};
+    await save(upd,id);await addLog('Tâche',`Clôturé : "${e.title}"`,id);
+    const nid=await spawnNext({...e,...upd});showToast(nid?'✓ Clôturé — nouvelle occurrence créée':'✓ Clôturé');return;
+  }
+  // Tâche non récurrente : archiver une copie "terminée", garder l'originale dans Tâches
+  if(archivedToday(e)){alert('Cette tâche a déjà été marquée comme faite aujourd\'hui.');return;}
+  try{await archiveTaskDone(e);showToast('✓ Fait — copie archivée dans Tâches terminées');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
 }
 async function delEntry(id){
   const e=entries.find(x=>x.id===id);await del(id);await addLog('Suppression',`Supprimé : "${e?e.title:'?'}"`,id);
+}
+async function deleteArchive(id){
+  if(!confirm('Supprimer cette ligne archivée des Tâches terminées ?'))return;
+  try{await del(id);await addLog('Tâche','Archive supprimée','—');showToast('Archive supprimée');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
 }
 async function delRef(id){
   if(!confirm('Supprimer ?'))return;
@@ -1822,7 +1861,7 @@ function renderCalendar(){
     const dow=new Date(y,m,d).getDay(),off=(dow===0||dow===6||HOLIDAYS.includes(ds)),ms=meetingsOn(ds),isT=ds===today;
     html+=`<div onclick="openMeetingModal('${ds}')" style="min-height:76px;border:1px solid ${isT?'var(--pur)':'var(--bord)'};border-radius:8px;padding:5px;cursor:pointer;background:${off?'var(--surf2)':'var(--surf)'};display:flex;flex-direction:column;gap:3px">
       <div style="font-size:11px;font-weight:600;color:${isT?'var(--pur)':(off?'var(--tx3)':'var(--tx2)')}">${d}</div>
-      ${ms.slice(0,3).map(mm=>`<div onclick="event.stopPropagation();editMeeting('${mm.id}')" title="${esc(mm.subject)}" style="font-size:9px;background:var(--pur);color:#fff;border-radius:4px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mm.time||''} ${esc(mm.subject)}</div>`).join('')}
+      ${ms.slice(0,3).map(mm=>{const bg=mm.status==='done'?'var(--grn-tx,#059669)':mm.status==='delayed'?'var(--org,#D97706)':'var(--pur)';return`<div onclick="event.stopPropagation();editMeeting('${mm.id}')" title="${esc(mm.subject)}${mm.status==='done'?' (faite)':mm.status==='delayed'?' (retardée)':''}" style="font-size:9px;background:${bg};color:#fff;border-radius:4px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mm.status==='done'?'✓ ':''}${mm.time||''} ${esc(mm.subject)}</div>`;}).join('')}
       ${ms.length>3?`<div style="font-size:9px;color:var(--tx3)">+${ms.length-3} autre(s)</div>`:''}
     </div>`;
   }
@@ -1840,7 +1879,7 @@ function renderCalendar(){
 }
 function openMeetingModal(dateStr){
   g('mt-id').value='';g('mt-lbl').textContent='Nouvelle réunion';g('mt-sub').textContent='';
-  g('mt-subject').value='';g('mt-date').value=(typeof dateStr==='string'&&dateStr?dateStr:todayStr());g('mt-time').value='';g('mt-dur').value='60';g('mt-loc').value='';g('mt-ext').value='';g('mt-notes').value='';g('mt-alert').checked=true;
+  g('mt-subject').value='';g('mt-date').value=(typeof dateStr==='string'&&dateStr?dateStr:todayStr());g('mt-time').value='';g('mt-dur').value='60';g('mt-loc').value='';g('mt-ext').value='';g('mt-notes').value='';g('mt-alert').checked=true;g('mt-status').value='';
   document.querySelectorAll('.mt-collab').forEach(c=>c.checked=false);
   g('mt-del').style.display='none';
   g('ov-meeting').classList.add('open');
@@ -1848,7 +1887,8 @@ function openMeetingModal(dateStr){
 function editMeeting(id){
   const mm=meetings.find(x=>x.id===id);if(!mm)return;
   g('mt-id').value=id;g('mt-lbl').textContent='Modifier la réunion';g('mt-sub').textContent=mm.date||'';
-  g('mt-subject').value=mm.subject||'';g('mt-date').value=mm.date||'';g('mt-time').value=mm.time||'';g('mt-dur').value=mm.duration||60;g('mt-loc').value=mm.location||'';g('mt-ext').value=(mm.externals||[]).join(', ');g('mt-notes').value=mm.notes||'';g('mt-alert').checked=mm.alert!==false;
+  g('mt-subject').value=mm.subject||'';g('mt-date').value=mm.date||'';g('mt-time').value=mm.time||'';g('mt-dur').value=mm.duration||60;g('mt-loc').value=mm.location||'';g('mt-ext').value=(mm.externals||[]).join(', ');g('mt-notes').value=mm.notes||'';g('mt-alert').checked=mm.alert!==false;g('mt-status').value=mm.status||'';
+  g('mt-id').dataset.olddate=mm.date||'';g('mt-id').dataset.oldtime=mm.time||'';
   document.querySelectorAll('.mt-collab').forEach(c=>c.checked=(mm.collabs||[]).includes(c.value));
   g('mt-del').style.display='inline-flex';
   g('ov-meeting').classList.add('open');
@@ -1859,10 +1899,16 @@ async function saveMeeting(){
   if(!date||!time)return alert('Date et heure obligatoires.');
   const collabs=[...document.querySelectorAll('.mt-collab:checked')].map(c=>c.value);
   const externals=g('mt-ext').value.split(',').map(s=>s.trim()).filter(Boolean);
-  const data=clean({subject,date,time,duration:parseInt(g('mt-dur').value)||60,location:g('mt-loc').value.trim(),collabs,externals,notes:g('mt-notes').value.trim(),alert:g('mt-alert').checked});
   const id=g('mt-id').value;
+  const oldDate=id?(g('mt-id').dataset.olddate||''):'',oldTime=id?(g('mt-id').dataset.oldtime||''):'';
+  let status=g('mt-status').value;
+  // Si la date/heure change sur une réunion existante → considéré comme report
+  if(id&&(date!==oldDate||time!==oldTime)&&status!=='done')status='delayed';
+  const data=clean({subject,date,time,duration:parseInt(g('mt-dur').value)||60,location:g('mt-loc').value.trim(),collabs,externals,notes:g('mt-notes').value.trim(),alert:g('mt-alert').checked,status});
   try{
-    if(id){await db.collection('meetings').doc(id).set({...data,updatedAt:new Date().toISOString()},{merge:true});await addLog('Réunion',`Réunion modifiée : "${subject}"`,id);}
+    if(id){await db.collection('meetings').doc(id).set({...data,updatedAt:new Date().toISOString()},{merge:true});
+      if(date!==oldDate||time!==oldTime)await addLog('Réunion',`Réunion reportée : "${subject}" (${oldDate} ${oldTime} → ${date} ${time})`,id);
+      else await addLog('Réunion',`Réunion modifiée : "${subject}"`,id);}
     else{const r=await db.collection('meetings').add({...data,createdAt:new Date().toISOString(),createdBy:curUser?curUser.email:'?'});await addLog('Réunion',`Réunion créée : "${subject}" (${date} ${time})`,r.id);}
     closeOv('ov-meeting');showToast('✓ Réunion enregistrée');
   }catch(err){alert('Échec : '+(err&&err.message?err.message:err));}
@@ -1898,24 +1944,51 @@ function showDiagram(id){
   g('ov-diagram').classList.add('open');
 }
 
-// TODAY — uniquement MES tâches/demandes non traitées à échéance aujourd'hui
+// TODAY — mes tâches du jour (+ sélection d'un collaborateur pour manager/admin)
+let todayViewCid='';
+function todayTeamOptions(){
+  if(isAdmin())return COLLABS.slice();
+  const m=meCollab();
+  if(m&&m.roleType==='manager'){const ids=myVisibleCids();return COLLABS.filter(c=>ids.includes(c.id));}
+  return [];
+}
+function todayTargetCid(){return todayViewCid||myCollabId();}
 function todayEntries(){
-  const ds=todayStr(),me=myCollabId();
-  return entries.filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due===ds&&e.assignee&&e.assignee===me);
+  const ds=todayStr(),tgt=todayTargetCid();
+  return entries.filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due===ds&&e.assignee&&e.assignee===tgt);
 }
 function todayMeetings(){const ds=todayStr();return meetings.filter(m=>m.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
-function updateTodayCount(){const el=g('today-cnt');if(el)el.textContent=todayEntries().length+todayMeetings().length;const b=g('today-btn');if(b)b.style.display=curUser?'inline-flex':'none';}
-function openTodayModal(){
-  const te=todayEntries(),tm=todayMeetings();
+function updateTodayCount(){const el=g('today-cnt');if(el){const me=myCollabId();el.textContent=entries.filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due===todayStr()&&e.assignee===me).length+todayMeetings().length;}const b=g('today-btn');if(b)b.style.display=curUser?'inline-flex':'none';}
+function openTodayModal(keep){
+  if(!keep)todayViewCid='';
   g('today-sub').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  let html=`<div class="sdiv"><i class="ti ti-calendar-event" style="font-size:13px"></i>Réunions (${tm.length})</div>`;
-  html+= tm.length?tm.map(mm=>`<div class="rhi" style="cursor:pointer" onclick="closeOv('ov-today');editMeeting('${mm.id}')"><i class="ti ti-clock"></i><b>${mm.time||''}</b> — ${esc(mm.subject)}${mm.location?' · '+esc(mm.location):''}</div>`).join(''):'<div style="font-size:12px;color:var(--tx3);padding:2px 0 8px">Aucune réunion aujourd\'hui.</div>';
-  html+=`<div class="sdiv" style="margin-top:1rem"><i class="ti ti-checkbox" style="font-size:13px"></i>Tâches &amp; demandes du jour (${te.length})</div>`;
+  const opts=todayTeamOptions(),me=myCollabId();
+  let sel='';
+  if(opts.length>1){
+    sel=`<div style="margin-bottom:12px"><label style="font-size:11px;color:var(--tx2);margin-right:6px">Voir les tâches de</label>
+      <select onchange="todayViewCid=this.value;openTodayModal(true)" style="padding:5px 8px;border:1px solid var(--bd);border-radius:7px;font-size:12px;font-family:inherit;background:var(--surf);color:var(--tx)">
+        <option value=""${todayViewCid===''?' selected':''}>Moi</option>
+        ${opts.filter(c=>c.id!==me).map(c=>`<option value="${c.id}"${todayViewCid===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}
+      </select></div>`;
+  }
+  const te=todayEntries(),tm=todayMeetings();
+  let html=sel+`<div class="sdiv"><i class="ti ti-calendar-event" style="font-size:13px"></i>Réunions (${tm.length})</div>`;
+  html+= tm.length?tm.map(mm=>{
+    const st=mm.status==='done'?'<span class="badge b-done" style="font-size:9px;margin-left:4px">Faite</span>':mm.status==='delayed'?'<span class="badge b-blk" style="font-size:9px;margin-left:4px">Retardée</span>':'';
+    const acts=mm.status==='done'?'':`<button class="btn btn-sm btn-p" onclick="event.stopPropagation();markMeetingDone('${mm.id}')" title="Marquer faite"><i class="ti ti-check"></i></button> <button class="btn btn-sm" onclick="event.stopPropagation();closeOv('ov-today');editMeeting('${mm.id}')" title="Retarder / modifier"><i class="ti ti-clock-pause"></i></button>`;
+    return `<div class="rhi" style="display:flex;align-items:center;gap:8px"><i class="ti ti-clock"></i><b>${mm.time||''}</b><span style="flex:1">${esc(mm.subject)}${mm.location?' · '+esc(mm.location):''}${st}</span>${acts}</div>`;
+  }).join(''):'<div style="font-size:12px;color:var(--tx3);padding:2px 0 8px">Aucune réunion aujourd\'hui.</div>';
+  const who=todayViewCid?('de '+esc(collabName(todayViewCid))):'du jour';
+  html+=`<div class="sdiv" style="margin-top:1rem"><i class="ti ti-checkbox" style="font-size:13px"></i>Tâches &amp; demandes ${who} (${te.length})</div>`;
   html+= te.length?`<table><tbody>${te.map(e=>`<tr class="row" onclick="closeOv('ov-today');openDetail('${e.id}')">
     <td class="wrap" style="width:64%">${esc(e.title)}${recBadge(e)}</td><td>${bdg(SM,e.status)}</td>
     <td><button class="btn btn-sm btn-p" onclick="event.stopPropagation();quickDone('${e.id}')"><i class="ti ti-check"></i></button></td></tr>`).join('')}</tbody></table>`:'<div style="font-size:12px;color:var(--tx3);padding:2px 0">Rien pour aujourd\'hui.</div>';
   g('today-body').innerHTML=html;
   g('ov-today').classList.add('open');
+}
+function markMeetingDone(id){
+  const mm=meetings.find(x=>x.id===id);if(!mm)return;
+  db.collection('meetings').doc(id).set({status:'done'},{merge:true}).then(()=>{addLog('Réunion','Réunion faite : "'+mm.subject+'"',id);showToast('✓ Réunion marquée faite');if(g('ov-today').classList.contains('open'))openTodayModal(true);}).catch(err=>alert('Erreur : '+(err&&err.message?err.message:err)));
 }
 
 // RESET (admin uniquement)
