@@ -378,10 +378,11 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
         <select id="cf-reqs" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
       </div>
       <div class="fbar" id="req-fbar">
-        <button class="chip on" onclick="setFilter('req','all',this)">Tous types</button>
-        <button class="chip" onclick="setFilter('req','request-int',this)">Interne</button>
-        <button class="chip" onclick="setFilter('req','request-ext',this)">Externe</button>
-        <button class="chip" onclick="setFilter('req','audit-req',this)">Audit</button>
+        <button class="chip on" onclick="setFilter('req','all',this)">Tous</button>
+        <button class="chip" onclick="setFilter('req','new',this)">Nouveau</button>
+        <button class="chip" onclick="setFilter('req','wip',this)">En cours</button>
+        <button class="chip" onclick="setFilter('req','review',this)">En révision</button>
+        <button class="chip" onclick="setFilter('req','blocked',this)">Bloqué</button>
       </div>
       <div class="card"><table><thead><tr><th style="width:7%">ID</th><th style="width:20%">Objet</th><th style="width:9%">Type</th><th style="width:12%">Assigné à</th><th style="width:10%">Origine</th><th style="width:10%">Statut</th><th style="width:9%">Date</th><th style="width:8%">Réf.</th><th style="width:15%"></th></tr></thead>
       <tbody id="req-body"></tbody></table></div>
@@ -491,7 +492,9 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
       </div>
       <div class="card">
         <div class="card-hd"><span class="card-title"><i class="ti ti-list-details"></i>Journal horodaté</span>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm" id="dedup-btn" style="display:none" onclick="dedupeRecurring()"><i class="ti ti-copy-off"></i> Nettoyer doublons</button>
+            <button class="btn btn-sm" id="reproc-btn" style="display:none" onclick="repairProcesses()"><i class="ti ti-sitemap"></i> Réparer process</button>
             <button class="btn btn-sm" id="fixwe-btn" style="display:none" onclick="fixWeekendDues()"><i class="ti ti-calendar-cog"></i> Corriger échéances week-end</button>
             <button class="btn btn-sm btn-d" id="reset-btn" style="display:none" onclick="openResetModal()"><i class="ti ti-alert-triangle"></i> Réinitialiser</button>
             <button class="btn btn-sm btn-d" id="clearlog-btn" style="display:none" onclick="clearLog()"><i class="ti ti-trash"></i> Effacer journal</button>
@@ -1005,6 +1008,7 @@ function applyRoleUI(){
   const rb=g('reset-btn');if(rb)rb.style.display=adm?'inline-flex':'none';
   const cl=g('clearlog-btn');if(cl)cl.style.display=adm?'inline-flex':'none';
   const fb=g('fixwe-btn');if(fb)fb.style.display=adm?'inline-flex':'none';
+  ['dedup-btn','reproc-btn'].forEach(id=>{const b=g(id);if(b)b.style.display=adm?'inline-flex':'none';});
   ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(id=>{const s=g(id);if(s)s.style.display=mgr?'':'none';});
   if(!adm&&['collabs','audit','stats','report'].includes(curTab)){const d=g('nav-dashboard');goTab('dashboard',d);}
 }
@@ -1061,8 +1065,12 @@ async function addLog(type,action,ref){const e={ts:nowStr(),type,action,ref,user
 async function spawnNext(e){
   if(!e.recur||!e.recur.enabled)return null;
   const t=todayStr(),baseDue=(e.due&&e.due>t)?e.due:t,nextDue=calcNext(e.recur,baseDue);
-  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',recurParentId:e.id,seriesId:seriesSig(e)||undefined,
-    comments:[{ts:nowStr(),text:`Nouvelle occurrence depuis ${e.id} (clôturé le ${todayStr()}).`,user:curUser?curUser.email:'?'}],attachments:[],steps:[]};
+  const sig=seriesSig(e);
+  // Idempotent : ne pas recréer une occurrence déjà active (même série + même échéance)
+  const dup=entries.find(x=>x.id!==e.id&&x.status!=='done'&&x.due===nextDue&&(x.recurParentId===e.id||(sig&&seriesSig(x)===sig)));
+  if(dup)return null;
+  const ne={title:e.title,type:e.type,cat:e.cat,priority:e.priority,status:'new',pct:0,due:nextDue,ref:e.ref,origin:e.origin,desc:e.desc,recur:{...e.recur},assignee:e.assignee||'',recurParentId:e.id,seriesId:sig||undefined,
+    comments:[{ts:nowStr(),text:`Nouvelle occurrence depuis ${e.id} (clôturé le ${todayStr()}).`,user:curUser?curUser.email:'?'}],attachments:[],steps:(e.steps||[]).map(s=>({...s}))};
   const nid=await save(ne,null);
   await db.collection('recurHist').add({parentId:e.id,newId:nid,title:e.title,freq:freqLbl(e.recur),closedAt:todayStr(),parentDue:e.due,nextDue});
   await addLog('Récurrence',`Nouvelle occurrence → ${nid} (éch. ${nextDue})`,nid);
@@ -1207,7 +1215,7 @@ function renderReqs(){
   const q=(g('req-search').value||'').toLowerCase();
   let list=scope(entries).filter(e=>isReq(e)&&!reqClosed(e));
   if(collabFilter)list=list.filter(collabPass);
-  if(filters.req!=='all')list=list.filter(e=>e.type===filters.req);
+  if(filters.req!=='all')list=list.filter(e=>e.status===filters.req);
   if(q)list=list.filter(e=>(e.title+e.ref+e.origin+collabName(e.assignee)).toLowerCase().includes(q));
   const tb=g('req-body');
   if(!list.length){tb.innerHTML='<tr><td colspan="9" class="empty"><i class="ti ti-filter-off"></i>Aucune demande à traiter.</td></tr>';return;}
@@ -1718,8 +1726,11 @@ async function archiveTaskDone(e){
   await addLog('Tâche',`Fait (archivé) : "${e.title}"`,e.id);
   return r.id;
 }
+const closingIds=new Set();
 async function quickDone(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
+  if(closingIds.has(id))return; closingIds.add(id);
+  try{
   // Demandes : clôture classique (sort de la liste)
   if(isReq(e)){if(e.status==='done')return;const upd={status:'done',pct:100,completedAt:new Date().toISOString(),comments:[...(e.comments||[]),{ts:nowStr(),text:'Clôturé.',user:curUser?curUser.email:'?'}]};await save(upd,id);await addLog('Demande',`Clôturé : "${e.title}"`,id);showToast('✓ Clôturé');return;}
   // Tâche récurrente : clôture + nouvelle occurrence
@@ -1734,6 +1745,7 @@ async function quickDone(id){
   if(archivedToday(e)){alert('Cette tâche a déjà été marquée comme faite aujourd\'hui.');return;}
   try{await archiveTaskDone(e);showToast('✓ Fait — copie archivée dans Tâches terminées');}
   catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+  }finally{closingIds.delete(id);}
 }
 async function delEntry(id){
   const e=entries.find(x=>x.id===id);await del(id);await addLog('Suppression',`Supprimé : "${e?e.title:'?'}"`,id);
@@ -1957,7 +1969,7 @@ function todayEntries(){
   const ds=todayStr(),tgt=todayTargetCid();
   return entries.filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due===ds&&e.assignee&&e.assignee===tgt);
 }
-function todayMeetings(){const ds=todayStr();return meetings.filter(m=>m.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
+function todayMeetings(){const ds=todayStr();return meetings.filter(m=>m.date===ds&&m.status!=='done'&&m.status!=='delayed').sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
 function updateTodayCount(){const el=g('today-cnt');if(el){const me=myCollabId();el.textContent=entries.filter(e=>e.status!=='done'&&!reqClosed(e)&&e.due===todayStr()&&e.assignee===me).length+todayMeetings().length;}const b=g('today-btn');if(b)b.style.display=curUser?'inline-flex':'none';}
 function openTodayModal(keep){
   if(!keep)todayViewCid='';
@@ -2133,6 +2145,24 @@ async function autoFixWeekend(){
     await addLog('Correction',`Auto : ${n} échéance(s) week-end reportée(s) au jour ouvré`,'—');
     showToast(n+' échéance(s) week-end corrigée(s) automatiquement');
   }catch(err){}
+}
+async function dedupeRecurring(){
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
+  const groups={};
+  entries.filter(e=>isTask(e)&&e.recur&&e.recur.enabled&&e.status!=='done').forEach(e=>{const sig=seriesSig(e)||('id:'+e.id);(groups[sig+'|'+(e.due||'')]=groups[sig+'|'+(e.due||'')]||[]).push(e);});
+  const dups=[];Object.values(groups).forEach(arr=>{if(arr.length>1){arr.sort((a,b)=>((a.createdAt||'')<(b.createdAt||'')?-1:1));arr.slice(1).forEach(x=>dups.push(x));}});
+  if(!dups.length)return alert('Aucun doublon détecté.');
+  if(!confirm(dups.length+' occurrence(s) en double détectée(s). Les supprimer ? (on garde la plus ancienne de chaque groupe)'))return;
+  let n=0;try{let batch=db.batch();for(const x of dups){batch.delete(db.collection('entries').doc(x.id));n++;if(n%400===0){await batch.commit();batch=db.batch();}}await batch.commit();await addLog('Nettoyage',`Doublons récurrents supprimés : ${n}`,'—');showToast('✓ '+n+' doublon(s) supprimé(s)');}catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+async function repairProcesses(){
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
+  const bySeries={};
+  entries.filter(e=>e.recur&&e.recur.enabled&&(e.steps||[]).length).forEach(e=>{const sig=seriesSig(e);if(sig&&!bySeries[sig])bySeries[sig]=e.steps;});
+  const targets=entries.filter(e=>e.recur&&e.recur.enabled&&!(e.steps||[]).length&&e.status!=='done'&&seriesSig(e)&&bySeries[seriesSig(e)]);
+  if(!targets.length)return alert('Aucun process manquant réparable (soit tout est en ordre, soit le process a disparu de toute la série).');
+  if(!confirm(targets.length+' tâche(s) récurrente(s) sans process vont récupérer les étapes d\'une occurrence de leur série. Continuer ?'))return;
+  let n=0;try{for(const e of targets){await save({steps:bySeries[seriesSig(e)].map(s=>({...s}))},e.id);n++;}await addLog('Réparation',`Process recopiés : ${n}`,'—');showToast('✓ '+n+' process réparé(s)');}catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
 }
 async function fixWeekendDues(){
   if(!isAdmin())return alert('Réservé à l\'administrateur.');
