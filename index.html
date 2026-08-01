@@ -34,7 +34,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-
 .login-sub{font-size:13px;color:var(--tx2);margin-bottom:2rem;text-align:center}
 .login-err{background:var(--red-bg);color:var(--red-tx);border-radius:var(--r);padding:8px 12px;font-size:12px;margin-bottom:12px;display:none;text-align:left}
 .layout{display:flex;min-height:100vh}
-.sb{width:230px;background:var(--surf);border-right:1px solid var(--bord);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb{width:230px;background:var(--surf);border-right:1px solid var(--bord);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:hidden}
+.sb-scroll{flex:1;min-height:0;overflow-y:auto;padding-bottom:.5rem}
+.sb-scroll::-webkit-scrollbar{width:6px}.sb-scroll::-webkit-scrollbar-thumb{background:var(--bord2);border-radius:3px}
+.sb-sec{padding:.6rem .75rem .3rem}
 .sb-logo{padding:1.25rem 1.25rem 1rem;border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:10px}
 .sb-icon{width:34px;height:34px;background:var(--pur);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0}
 .sb-title{font-size:13px;font-weight:600;color:var(--tx);line-height:1.2}
@@ -245,24 +248,43 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
     <div class="sb-icon"><i class="ti ti-shield-check"></i></div>
     <div><div class="sb-title">Ops Tracker</div><div class="sb-sub">Viamobile / Kashy v4</div></div>
   </div>
+  <div class="sb-scroll">
   <div class="sb-sec">
-    <div class="sb-lbl">Navigation</div>
+    <div class="sb-lbl">Vue d'ensemble</div>
     <button class="nav on" id="nav-dashboard" onclick="goTab('dashboard',this)"><i class="ti ti-layout-dashboard"></i>Tableau de bord</button>
     <button class="nav" id="nav-stats" onclick="goTab('stats',this)"><i class="ti ti-chart-bar"></i>Statistiques</button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Tâches</div>
     <button class="nav" onclick="goTab('tasks',this)"><i class="ti ti-checkbox"></i>Tâches <span class="nb" id="nb-tasks">0</span></button>
     <button class="nav" onclick="goTab('completed',this)"><i class="ti ti-checks"></i>Tâches terminées <span class="nb" id="nb-completed">0</span></button>
+    <button class="nav" onclick="goTab('recurring',this)"><i class="ti ti-repeat"></i>Récurrentes <span class="nb" id="nb-recur">0</span></button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Demandes</div>
     <button class="nav" onclick="goTab('requests',this)"><i class="ti ti-messages"></i>Demandes <span class="nb" id="nb-reqs">0</span></button>
     <button class="nav" onclick="goTab('reqdone',this)"><i class="ti ti-mail-check"></i>Demandes traitées <span class="nb" id="nb-reqdone">0</span></button>
-    <button class="nav" onclick="goTab('recurring',this)"><i class="ti ti-repeat"></i>Récurrentes <span class="nb" id="nb-recur">0</span></button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Réclamations</div>
+    <button class="nav" onclick="goTab('reclam',this)"><i class="ti ti-message-report"></i>Réclamations <span class="nb" id="nb-reclam">0</span></button>
+    <button class="nav" onclick="goTab('reclamdone',this)"><i class="ti ti-message-check"></i>Réclamations traitées <span class="nb" id="nb-reclamdone">0</span></button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Organisation</div>
     <button class="nav" onclick="goTab('calendar',this)"><i class="ti ti-calendar-event"></i>Calendrier réunions</button>
     <button class="nav" id="nav-collabs" onclick="goTab('collabs',this)"><i class="ti ti-users"></i>Collaborateurs</button>
     <button class="nav" onclick="goTab('refs',this)"><i class="ti ti-books"></i>Références</button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Pilotage</div>
     <button class="nav" id="nav-report" onclick="goTab('report',this)"><i class="ti ti-file-analytics"></i>Rapport période</button>
     <button class="nav" id="nav-audit" onclick="goTab('audit',this)"><i class="ti ti-certificate"></i>Audit & Journal</button>
   </div>
   <div class="sb-sec">
     <div class="sb-lbl">Alertes</div>
     <button class="nav" onclick="goTab('alerts',this)" style="color:#C2410C"><i class="ti ti-alarm" style="color:var(--org)"></i>Échéances <span class="nb red" id="nb-alerts">0</span></button>
+  </div>
   </div>
   <div class="sb-user">
     <div class="sb-avatar" id="sb-av">?</div>
@@ -281,7 +303,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
   <div class="topbar">
     <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
     <div class="pg-title" id="page-title">Tableau de bord</div>
-    <div class="tb-acts">
+    <div class="tb-acts" id="tb-acts">
       <button class="btn btn-sm" onclick="exportCSV()"><i class="ti ti-table-export"></i> CSV</button>
       <button class="btn btn-sm" onclick="exportXLSX()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
       <button class="btn btn-sm" onclick="exportJSON()"><i class="ti ti-download"></i> JSON</button>
@@ -398,6 +420,38 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
         <div class="card-hd"><span class="card-title"><i class="ti ti-mail-check"></i>Demandes traitées ou ignorées</span><span style="font-size:12px;color:var(--tx2)" id="reqd-count"></span></div>
         <table><thead><tr><th style="width:7%">ID</th><th style="width:22%">Objet</th><th style="width:9%">Type</th><th style="width:14%">Assigné à</th><th style="width:11%">Origine</th><th style="width:10%">Statut</th><th style="width:11%">Traitée le</th><th style="width:16%"></th></tr></thead>
         <tbody id="reqd-body"></tbody></table>
+      </div>
+    </div>
+
+    <div id="tab-reclam" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div class="sbar" style="flex:1;min-width:160px;margin:0"><i class="ti ti-search"></i><input type="text" id="rec-search" placeholder="Rechercher…" oninput="renderReclam()"></div>
+        <select id="cf-reclam" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
+        <button class="btn btn-sm" onclick="openReclamConfig()"><i class="ti ti-settings"></i> Catégories / SLA</button>
+        <button class="btn btn-p btn-sm" onclick="openReclamModal()"><i class="ti ti-plus"></i> Nouvelle réclamation</button>
+      </div>
+      <div class="fbar" id="rec-fbar">
+        <button class="chip on" onclick="setRecFilter('all',this)">Toutes</button>
+        <button class="chip" onclick="setRecFilter('new',this)">Reçue</button>
+        <button class="chip" onclick="setRecFilter('wip',this)">En cours</button>
+        <button class="chip" onclick="setRecFilter('waiting',this)">En attente</button>
+      </div>
+      <div class="card"><table style="min-width:760px"><thead><tr><th style="width:8%">Réf</th><th style="width:16%">Réclamant</th><th style="width:13%">Catégorie</th><th style="width:9%">Montant</th><th style="width:12%">Assigné</th><th style="width:9%">Statut</th><th style="width:11%">Échéance SLA</th><th style="width:12%"></th></tr></thead>
+      <tbody id="rec-body"></tbody></table></div>
+    </div>
+
+    <div id="tab-reclamdone" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div class="sbar" style="flex:1;min-width:160px;margin:0"><i class="ti ti-search"></i><input type="text" id="recd-search" placeholder="Rechercher…" oninput="renderReclamDone()"></div>
+        <select id="cf-reclamdone" onchange="setCollabFilter(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf);font-size:12px;color:var(--tx);font-family:inherit"></select>
+        <button class="btn btn-sm" onclick="exportReclamCSV()"><i class="ti ti-table-export"></i> CSV</button>
+        <button class="btn btn-sm" onclick="exportReclamXLSX()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+      </div>
+      <div id="dr-reclamdone-bar"></div>
+      <div class="card">
+        <div class="card-hd"><span class="card-title"><i class="ti ti-message-check"></i>Réclamations résolues ou rejetées</span><span id="recd-count" style="font-size:12px;color:var(--tx2)"></span></div>
+        <table style="min-width:800px"><thead><tr><th style="width:8%">Réf</th><th style="width:16%">Réclamant</th><th style="width:13%">Catégorie</th><th style="width:11%">Assigné</th><th style="width:9%">Reçue</th><th style="width:9%">Clôturée</th><th style="width:9%">Statut</th><th style="width:9%">SLA</th><th style="width:6%"></th></tr></thead>
+        <tbody id="recd-body"></tbody></table>
       </div>
     </div>
 
@@ -724,6 +778,80 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
 </div>
 </div>
 
+<datalist id="dept-list"></datalist>
+<!-- MODAL RÉCLAMATION -->
+<div class="ov" id="ov-reclam" onclick="ovClose('ov-reclam',event)">
+<div class="modal">
+  <div class="mhd"><div><div class="mtitle" id="rc-lbl">Nouvelle réclamation</div><div class="msub" id="rc-sub"></div></div><button class="cx" onclick="closeOv('ov-reclam')"><i class="ti ti-x"></i></button></div>
+  <input type="hidden" id="rc-id">
+  <div class="frow3">
+    <div class="fg"><label>Date de réception *</label><input type="date" id="rc-received" onchange="updateReclamSla()"></div>
+    <div class="fg"><label>Canal</label><select id="rc-channel"></select></div>
+    <div class="fg"><label>Type de réclamant</label><select id="rc-claimant-type"><option value="client">Client</option><option value="agent">Agent / partenaire</option></select></div>
+  </div>
+  <div class="frow3">
+    <div class="fg"><label>Nom du réclamant *</label><input type="text" id="rc-claimant-name" placeholder="Nom complet"></div>
+    <div class="fg"><label>Contact</label><input type="text" id="rc-claimant-contact" placeholder="Tél. / email"></div>
+    <div class="fg"><label>Identifiant wallet / compte</label><input type="text" id="rc-claimant-id" placeholder="N° wallet ou compte"></div>
+  </div>
+  <div class="frow3">
+    <div class="fg"><label>Catégorie *</label><select id="rc-cat" onchange="reclamCatChange()"></select></div>
+    <div class="fg"><label>Type</label><select id="rc-type" onchange="reclamTypeChange()"></select></div>
+    <div class="fg"><label>SLA (échéance calculée)</label><input type="text" id="rc-sla-display" readonly style="background:var(--surf2)"></div>
+  </div>
+  <div class="frow3">
+    <div class="fg"><label>Montant contesté</label><input type="number" id="rc-amount" step="0.001" placeholder="0.000"></div>
+    <div class="fg"><label>Assigné à (pilote)</label><select id="rc-assignee"></select></div>
+    <div class="fg"><label>Département</label><input list="dept-list" id="rc-dept" placeholder="Département"></div>
+  </div>
+  <div class="fg"><label>Priorité</label><select id="rc-priority"><option value="high">Haute</option><option value="med" selected>Moyenne</option><option value="low">Basse</option></select></div>
+  <div class="fg"><label>Statut</label><select id="rc-status" onchange="reclamStatusChange()"><option value="new">Reçue</option><option value="wip">En cours</option><option value="waiting">En attente</option><option value="resolved">Résolue</option><option value="rejected">Rejetée</option></select></div>
+  <div class="fg"><label>Description</label><textarea id="rc-desc" placeholder="Objet de la réclamation, transaction concernée, contexte…"></textarea></div>
+  <div id="rc-resolution-grp" style="display:none"><div class="fg"><label>Résolution / issue</label><textarea id="rc-resolution" placeholder="Décision, remboursement, motif de rejet…"></textarea></div></div>
+  <div id="rc-timeline-wrap" style="display:none">
+    <div class="sdiv" style="margin-top:6px"><i class="ti ti-timeline" style="font-size:13px"></i>Interventions &amp; historique</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      <select id="rc-ev-kind" style="padding:6px 8px;border:1px solid var(--bd);border-radius:7px;font-size:12px;font-family:inherit;background:var(--surf);color:var(--tx)"><option value="intervention">Intervention</option><option value="fix">Correction</option><option value="comment">Commentaire</option><option value="block">Blocage</option></select>
+      <input id="rc-ev-text" placeholder="Décrire…" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid var(--bd);border-radius:7px;font-size:12px;font-family:inherit;background:var(--surf);color:var(--tx)">
+      <button class="btn btn-sm btn-p" onclick="addReclamIntervention()"><i class="ti ti-plus"></i></button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;background:var(--surf2);padding:8px;border-radius:8px">
+      <span style="font-size:11px;color:var(--tx2);font-weight:600"><i class="ti ti-arrows-exchange" style="font-size:12px"></i> Réaffecter :</span>
+      <select id="rc-reassign-collab" style="padding:5px 7px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)"></select>
+      <input list="dept-list" id="rc-reassign-dept" placeholder="Département" style="width:120px;padding:5px 7px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)">
+      <button class="btn btn-sm" onclick="reassignReclam()"><i class="ti ti-send"></i> Transférer</button>
+    </div>
+    <div id="rc-timeline"></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+    <button class="btn btn-d btn-sm" id="rc-del" style="display:none" onclick="deleteReclam()"><i class="ti ti-trash"></i> Supprimer</button>
+    <button class="btn" onclick="closeOv('ov-reclam')">Annuler</button>
+    <button class="btn btn-p" onclick="saveReclam()"><i class="ti ti-check"></i> Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL CONFIG RÉCLAMATIONS -->
+<div class="ov" id="ov-reclam-config" onclick="ovClose('ov-reclam-config',event)">
+<div class="modal">
+  <div class="mhd"><div><div class="mtitle"><i class="ti ti-settings"></i> Catégories &amp; SLA</div><div class="msub">Le SLA (en jours ouvrés) est rattaché à la catégorie</div></div><button class="cx" onclick="closeOv('ov-reclam-config')"><i class="ti ti-x"></i></button></div>
+  <div class="sdiv"><i class="ti ti-folder" style="font-size:13px"></i>Catégories</div>
+  <div id="rcfg-cats"></div>
+  <div class="frow" style="margin-top:8px">
+    <div class="fg" style="margin-bottom:0"><label>Nouvelle catégorie</label><input type="text" id="rcfg-cat-name" placeholder="Nom"></div>
+    <div class="fg" style="margin-bottom:0"><label>SLA (jours ouvrés)</label><input type="number" id="rcfg-cat-sla" min="0" value="5"></div>
+    <div class="fg" style="margin-bottom:0;display:flex;align-items:flex-end"><button class="btn btn-p btn-sm" onclick="addReclamCat()"><i class="ti ti-plus"></i> Ajouter</button></div>
+  </div>
+  <div class="sdiv" style="margin-top:16px"><i class="ti ti-tags" style="font-size:13px"></i>Types</div>
+  <div id="rcfg-types"></div>
+  <div class="frow" style="margin-top:8px">
+    <div class="fg" style="margin-bottom:0"><label>Nouveau type</label><input type="text" id="rcfg-type-name" placeholder="Nom"></div>
+    <div class="fg" style="margin-bottom:0;display:flex;align-items:flex-end"><button class="btn btn-p btn-sm" onclick="addReclamType()"><i class="ti ti-plus"></i> Ajouter</button></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-sm" onclick="closeOv('ov-reclam-config')">Fermer</button></div>
+</div>
+</div>
+
 <!-- MODAL RESET -->
 <div class="ov" id="ov-reset" onclick="ovClose('ov-reset',event)">
 <div class="modal">
@@ -763,8 +891,11 @@ const firebaseConfig={apiKey:"AIzaSyD5AIiaNK-O_WiKmBp5MGYTBgHLtPPepQ8",authDomai
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
 
-const ALL_TABS=['dashboard','stats','tasks','completed','requests','reqdone','recurring','calendar','collabs','alerts','refs','report','audit'];
-const TAB_TITLES={dashboard:'Tableau de bord',stats:'Statistiques',tasks:'Tâches',completed:'Tâches terminées',requests:'Demandes',reqdone:'Demandes traitées',recurring:'Tâches récurrentes',calendar:'Calendrier des réunions',collabs:'Collaborateurs',refs:'Références',report:'Rapport par période',audit:'Audit & Journal',alerts:'Alertes'};
+const ALL_TABS=['dashboard','stats','tasks','completed','requests','reqdone','reclam','reclamdone','recurring','calendar','collabs','alerts','refs','report','audit'];
+const TAB_TITLES={dashboard:'Tableau de bord',stats:'Statistiques',tasks:'Tâches',completed:'Tâches terminées',requests:'Demandes',reqdone:'Demandes traitées',reclam:'Réclamations',reclamdone:'Réclamations traitées',recurring:'Tâches récurrentes',calendar:'Calendrier des réunions',collabs:'Collaborateurs',refs:'Références',report:'Rapport par période',audit:'Audit & Journal',alerts:'Alertes'};
+const RSM={new:{l:'Reçue',c:'b-new'},wip:{l:'En cours',c:'b-wip'},waiting:{l:'En attente',c:'b-blk'},resolved:{l:'Résolue',c:'b-done'},rejected:{l:'Rejetée',c:'b-blk'}};
+const REC_CLOSED=['resolved','rejected'];
+const CHANNELS=['Téléphone','Email','Agence','App Kashy','Réseau social','Courrier','Autre'];
 const SM={new:{l:'Nouveau',c:'b-new'},wip:{l:'En cours',c:'b-wip'},done:{l:'Terminé',c:'b-done'},blocked:{l:'Bloqué',c:'b-blk'},review:{l:'En révision',c:'b-rev'},traite:{l:'Traité',c:'b-done'},ignore:{l:'Ignoré',c:'b-blk'}};
 const PM={high:{l:'Haute',c:'b-hi'},med:{l:'Moyenne',c:'b-md'},low:{l:'Basse',c:'b-lo'}};
 const TM={task:{l:'Tâche',c:'b-new'},'request-int':{l:'Interne',c:'b-int'},'request-ext':{l:'Externe',c:'b-ext'},'audit-req':{l:'Audit',c:'b-aud'}};
@@ -909,6 +1040,8 @@ auth.onAuthStateChanged(async user=>{
     populateSelects();
     subscribeEntries();
     subscribeMeetings();
+    subscribeReclamConfig();
+    subscribeReclam();
     loadRefs();
     loadLogs();
   }else{
@@ -920,6 +1053,8 @@ auth.onAuthStateChanged(async user=>{
     if(unsubEntries){unsubEntries();unsubEntries=null;}
     if(unsubMeet){unsubMeet();unsubMeet=null;meetings=[];}
     if(unsubCollabs){unsubCollabs();unsubCollabs=null;}
+    if(unsubReclam){unsubReclam();unsubReclam=null;reclamations=[];}
+    if(unsubReclamCfg){unsubReclamCfg();unsubReclamCfg=null;}
   }
 });
 async function loadCollabs(){
@@ -942,10 +1077,12 @@ function subscribeCollabs(){
     curCollab=COLLABS.find(c=>curUser&&c.email===curUser.email)||null;
     const ur=g('sb-urole');if(ur)ur.textContent=(curCollab?curCollab.role:'Utilisateur')+' · '+(isAdmin()?'Admin':isManager()?'Manager':'Collaborateur');
     populateSelects();applyRoleUI();
+    refreshDeptList();
     if(curTab==='collabs')renderCollabs();
   },err=>{});
 }
 function collabActive(){return COLLABS.filter(c=>c.active!==false);}
+function deptList(){return [...new Set(COLLABS.map(c=>(c.dept||'').trim()).filter(Boolean))].sort();}
 function nextCid(){let n=1;while(COLLABS.some(c=>c.id==='c'+n))n++;return 'c'+n;}
 async function addCollab(){
   if(!isAdmin())return alert('Réservé à l\'administrateur.');
@@ -990,7 +1127,7 @@ function populateSelects(){
     COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
   });
   const rc=g('rpt-collab');if(rc){rc.innerHTML='<option value="all">Tous</option>';COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;rc.appendChild(o);});}
-  ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(sid=>{
+  ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur','cf-reclam','cf-reclamdone'].forEach(sid=>{
     const sel=g(sid);if(!sel)return;
     sel.innerHTML='<option value="">Tous les collaborateurs</option>';
     COLLABS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=(c.id===myCollabId()?'👤 '+c.name:c.name);sel.appendChild(o);});
@@ -1000,7 +1137,7 @@ function populateSelects(){
   if(po)po.innerHTML='<option value="">— Aucun —</option>'+COLLABS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const mc=g('mt-collabs');
   if(mc)mc.innerHTML=COLLABS.map(c=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="mt-collab" value="${c.id}" style="width:15px;height:15px"> ${esc(c.name)}</label>`).join('');
-  ['completed','reqdone','audit'].forEach(k=>{const b=g('dr-'+k+'-bar');if(b&&!b.innerHTML)b.innerHTML=rangeBar(k);});
+  ['completed','reqdone','audit','reclamdone'].forEach(k=>{const b=g('dr-'+k+'-bar');if(b&&!b.innerHTML)b.innerHTML=rangeBar(k);});
 }
 function applyRoleUI(){
   const mgr=isManager(),adm=isAdmin();
@@ -1009,16 +1146,16 @@ function applyRoleUI(){
   const cl=g('clearlog-btn');if(cl)cl.style.display=adm?'inline-flex':'none';
   const fb=g('fixwe-btn');if(fb)fb.style.display=adm?'inline-flex':'none';
   ['dedup-btn','reproc-btn'].forEach(id=>{const b=g(id);if(b)b.style.display=adm?'inline-flex':'none';});
-  ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(id=>{const s=g(id);if(s)s.style.display=mgr?'':'none';});
+  ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur','cf-reclam','cf-reclamdone'].forEach(id=>{const s=g(id);if(s)s.style.display=mgr?'':'none';});
   if(!adm&&['collabs','audit','stats','report'].includes(curTab)){const d=g('nav-dashboard');goTab('dashboard',d);}
 }
-function syncCollabSelects(){['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur'].forEach(sid=>{const s=g(sid);if(s)s.value=collabFilter;});}
+function syncCollabSelects(){['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur','cf-reclam','cf-reclamdone'].forEach(sid=>{const s=g(sid);if(s)s.value=collabFilter;});}
 function setCollabFilter(val){collabFilter=val;syncCollabSelects();render();}
 function collabPass(e){return !collabFilter||e.assignee===collabFilter;}
 // FILTRES PAR PLAGE DE DATES
-const dateRanges={completed:{from:'',to:''},reqdone:{from:'',to:''},audit:{from:'',to:''}};
+const dateRanges={completed:{from:'',to:''},reqdone:{from:'',to:''},audit:{from:'',to:''},reclamdone:{from:'',to:''}};
 function inRange(ds,r){if(!ds)return!(r.from||r.to);return(!r.from||ds>=r.from)&&(!r.to||ds<=r.to);}
-function setRange(key,which,val){dateRanges[key][which]=val;if(key==='completed')renderCompleted();else if(key==='reqdone')renderReqDone();else if(key==='audit')renderAudit();}
+function setRange(key,which,val){dateRanges[key][which]=val;if(key==='completed')renderCompleted();else if(key==='reqdone')renderReqDone();else if(key==='audit')renderAudit();else if(key==='reclamdone')renderReclamDone();}
 function setRangePreset(key,preset){
   const t=new Date();let from='';const to=todayStr();
   if(preset==='7'){const d=new Date();d.setDate(d.getDate()-6);from=fmtDate(d);}
@@ -1027,7 +1164,7 @@ function setRangePreset(key,preset){
   else if(preset==='clear'){from='';}
   dateRanges[key].from=from;dateRanges[key].to=(preset==='clear'?'':to);
   g('dr-'+key+'-from').value=dateRanges[key].from;g('dr-'+key+'-to').value=dateRanges[key].to;
-  if(key==='completed')renderCompleted();else if(key==='reqdone')renderReqDone();else if(key==='audit')renderAudit();
+  if(key==='completed')renderCompleted();else if(key==='reqdone')renderReqDone();else if(key==='audit')renderAudit();else if(key==='reclamdone')renderReclamDone();
 }
 function rangeBar(key){
   return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
@@ -1087,6 +1224,9 @@ function updateBadges(){
   g('nb-recur').textContent=es.filter(e=>e.recur&&e.recur.enabled&&e.status!=='done').length;
   const al=es.filter(e=>isOverdue(e)||isUrgent(e));
   const nb=g('nb-alerts');nb.textContent=al.length;nb.className='nb'+(al.length>0?' red':'');
+  const rs=(reclamations||[]);
+  const nr=g('nb-reclam');if(nr)nr.textContent=rs.filter(r=>!recClosed(r)).length;
+  const nrd=g('nb-reclamdone');if(nrd)nrd.textContent=rs.filter(r=>recClosed(r)).length;
   updateTodayCount();
 }
 function updateAlertBanner(){
@@ -1105,6 +1245,7 @@ function goTab(id,el){
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
   if(el)el.classList.add('on');
   curTab=id;g('page-title').textContent=TAB_TITLES[id]||id;render();
+  const ta=g('tb-acts');if(ta)ta.style.display=(id==='reclam'||id==='reclamdone')?'none':'';
   closeSidebar();
 }
 function setFilter(which,val,el){
@@ -1124,6 +1265,8 @@ function render(){
   else if(curTab==='completed')renderCompleted();
   else if(curTab==='requests')renderReqs();
   else if(curTab==='reqdone')renderReqDone();
+  else if(curTab==='reclam')renderReclam();
+  else if(curTab==='reclamdone')renderReclamDone();
   else if(curTab==='recurring')renderRecurring();
   else if(curTab==='calendar')renderCalendar();
   else if(curTab==='collabs')renderCollabs();
@@ -1295,11 +1438,12 @@ function renderCollabs(){
           <div class="fg" style="margin-bottom:0"><label>Rattaché à (responsable)</label><select id="nc-reportsto"><option value="">— Aucun —</option>${opt()}</select></div>
           <div class="fg" style="margin-bottom:0;display:flex;align-items:flex-end"><button class="btn btn-p" onclick="addCollab()"><i class="ti ti-user-plus"></i> Ajouter</button></div>
         </div>
-        <div style="overflow-x:auto;margin-top:12px"><table style="min-width:640px"><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Rattaché à</th><th style="text-align:center">Actif</th><th></th></tr></thead><tbody>
+        <div style="overflow-x:auto;margin-top:12px"><table style="min-width:720px"><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Département</th><th>Rattaché à</th><th style="text-align:center">Actif</th><th></th></tr></thead><tbody>
         ${COLLABS.map(c=>`<tr>
           <td class="wrap">${esc(c.name)}</td>
           <td style="font-size:11px;color:var(--tx2)">${esc(c.email)}</td>
           <td><select onchange="updateCollab('${c.id}','roleType',this.value)" style="padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)">${['collab','manager','admin'].map(r=>`<option value="${r}"${(c.roleType||'collab')===r?' selected':''}>${roleLabel(r)}</option>`).join('')}</select></td>
+          <td><input list="dept-list" value="${esc(c.dept||'')}" placeholder="Saisir…" onchange="updateCollab('${c.id}','dept',this.value.trim())" style="width:120px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)"></td>
           <td><select onchange="updateCollab('${c.id}','reportsTo',this.value)" style="padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surf);color:var(--tx)"><option value="">—</option>${COLLABS.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}"${c.reportsTo===x.id?' selected':''}>${esc(x.name)}</option>`).join('')}</select></td>
           <td style="text-align:center"><input type="checkbox" ${c.active!==false?'checked':''} onchange="updateCollab('${c.id}','active',this.checked)" style="width:16px;height:16px;cursor:pointer"></td>
           <td>${c.id==='me'?'':`<button class="btn btn-sm btn-d" onclick="removeCollab('${c.id}')" title="Retirer"><i class="ti ti-trash"></i></button>`}</td>
@@ -2177,6 +2321,232 @@ async function fixWeekendDues(){
   }catch(err){alert('Erreur après '+n+' correction(s) : '+(err&&err.message?err.message:err));}
 }
 
+// ============ MODULE RÉCLAMATIONS ============
+let reclamations=[],reclamConfig={cats:[],types:[]},unsubReclam=null,unsubReclamCfg=null,recFilter='all';
+const SEED_RECLAM_CATS=[{name:'Transaction non aboutie',sla:5},{name:'Débit non reconnu',sla:5},{name:'Fraude / usurpation',sla:3},{name:'Remboursement',sla:7},{name:'Frais contestés',sla:7},{name:'Problème KYC / compte',sla:5},{name:'Agent / partenaire',sla:5},{name:'Service client',sla:10},{name:'Technique / app',sla:5},{name:'Autre',sla:10}];
+const SEED_RECLAM_TYPES=[{name:'Réclamation initiale'},{name:'Relance'},{name:'Escalade'},{name:'Demande d\'information'}];
+function addBizDays(dateStr,n){let d=parseDate(dateStr);let added=0,guard=0;while(added<(parseInt(n)||0)&&guard++<400){d.setDate(d.getDate()+1);if(!isOffDay(d))added++;}return fmtDate(d);}
+function recSla(cat){const c=(reclamConfig.cats||[]).find(x=>x.name===cat);return c?(parseInt(c.sla)||0):5;}
+function reclamDue(r){if(!r.receivedAt)return '';return addBizDays(r.receivedAt,recSla(r.cat));}
+function recClosed(r){return REC_CLOSED.includes(r.status);}
+function recSlaMet(r){if(!recClosed(r)||!r.resolvedAt)return null;const due=reclamDue(r);if(!due)return null;return r.resolvedAt<=due;}
+
+function subscribeReclamConfig(){
+  if(unsubReclamCfg)unsubReclamCfg();
+  unsubReclamCfg=db.collection('meta').doc('reclamConfig').onSnapshot(async doc=>{
+    if(!doc.exists){try{await db.collection('meta').doc('reclamConfig').set({cats:SEED_RECLAM_CATS,types:SEED_RECLAM_TYPES});}catch(e){}reclamConfig={cats:SEED_RECLAM_CATS.slice(),types:SEED_RECLAM_TYPES.slice()};}
+    else reclamConfig={cats:doc.data().cats||[],types:doc.data().types||[]};
+    if(g('ov-reclam-config').classList.contains('open'))renderReclamConfig();
+    if(g('ov-reclam').classList.contains('open'))repopulateReclamForm();
+    if(curTab==='reclam')renderReclam();
+  },err=>{});
+}
+function subscribeReclam(){
+  if(unsubReclam)unsubReclam();
+  unsubReclam=db.collection('reclamations').orderBy('createdAt','desc').onSnapshot(snap=>{
+    reclamations=snap.docs.map(d=>({id:d.id,...d.data()}));
+    reclamations.forEach(r=>{if(!r.comments)r.comments=[];if(!r.events)r.events=[];});
+    updateBadges();
+    if(curTab==='reclam')renderReclam();else if(curTab==='reclamdone')renderReclamDone();
+    if(g('ov-reclam').classList.contains('open')&&g('rc-id').value)renderReclamTimeline(g('rc-id').value);
+  },err=>{});
+}
+async function saveReclamConfig(){try{await db.collection('meta').doc('reclamConfig').set({cats:reclamConfig.cats,types:reclamConfig.types});}catch(err){alert('Erreur config : '+(err&&err.message?err.message:err));}}
+
+// --- Config (catégories / SLA / types) ---
+function openReclamConfig(){renderReclamConfig();g('ov-reclam-config').classList.add('open');}
+function renderReclamConfig(){
+  const cc=g('rcfg-cats');
+  cc.innerHTML=(reclamConfig.cats||[]).length?(reclamConfig.cats.map((c,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+    <span style="flex:1;font-size:13px">${esc(c.name)}</span>
+    <input type="number" min="0" value="${c.sla}" onchange="updateReclamCatSla(${i},this.value)" style="width:70px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:12px;font-family:inherit;background:var(--surf);color:var(--tx)"> <span style="font-size:11px;color:var(--tx2)">j ouvr.</span>
+    <button class="btn btn-sm btn-d" onclick="delReclamCat(${i})"><i class="ti ti-trash"></i></button></div>`).join('')):'<div style="font-size:12px;color:var(--tx3)">Aucune catégorie.</div>';
+  const tc=g('rcfg-types');
+  tc.innerHTML=(reclamConfig.types||[]).length?(reclamConfig.types.map((t,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+    <span style="flex:1;font-size:13px">${esc(t.name)}</span>
+    <button class="btn btn-sm btn-d" onclick="delReclamType(${i})"><i class="ti ti-trash"></i></button></div>`).join('')):'<div style="font-size:12px;color:var(--tx3)">Aucun type.</div>';
+}
+function addReclamCat(nameArg,slaArg){
+  const name=(nameArg!==undefined?nameArg:g('rcfg-cat-name').value).trim();
+  const sla=parseInt(slaArg!==undefined?slaArg:g('rcfg-cat-sla').value)||0;
+  if(!name)return alert('Nom de catégorie obligatoire.');
+  if((reclamConfig.cats||[]).some(c=>c.name.toLowerCase()===name.toLowerCase()))return alert('Cette catégorie existe déjà.');
+  reclamConfig.cats=[...(reclamConfig.cats||[]),{name,sla}];
+  saveReclamConfig();addLog('Réclamation',`Catégorie ajoutée : ${name} (SLA ${sla}j)`,'—');
+  if(g('rcfg-cat-name'))g('rcfg-cat-name').value='';renderReclamConfig();repopulateReclamForm();
+  return name;
+}
+function updateReclamCatSla(i,val){reclamConfig.cats[i].sla=parseInt(val)||0;saveReclamConfig();updateReclamSla();}
+function delReclamCat(i){if(!confirm('Supprimer cette catégorie ?'))return;reclamConfig.cats.splice(i,1);saveReclamConfig();renderReclamConfig();repopulateReclamForm();}
+function addReclamType(nameArg){
+  const name=(nameArg!==undefined?nameArg:g('rcfg-type-name').value).trim();
+  if(!name)return alert('Nom de type obligatoire.');
+  if((reclamConfig.types||[]).some(t=>t.name.toLowerCase()===name.toLowerCase()))return alert('Ce type existe déjà.');
+  reclamConfig.types=[...(reclamConfig.types||[]),{name}];
+  saveReclamConfig();if(g('rcfg-type-name'))g('rcfg-type-name').value='';renderReclamConfig();repopulateReclamForm();
+  return name;
+}
+function delReclamType(i){if(!confirm('Supprimer ce type ?'))return;reclamConfig.types.splice(i,1);saveReclamConfig();renderReclamConfig();repopulateReclamForm();}
+
+// --- Formulaire réclamation ---
+function catOptions(sel){return (reclamConfig.cats||[]).map(c=>`<option value="${esc(c.name)}"${c.name===sel?' selected':''}>${esc(c.name)}</option>`).join('')+'<option value="__add__">＋ Nouvelle catégorie…</option>';}
+function typeOptions(sel){return '<option value="">—</option>'+(reclamConfig.types||[]).map(t=>`<option value="${esc(t.name)}"${t.name===sel?' selected':''}>${esc(t.name)}</option>`).join('')+'<option value="__add__">＋ Nouveau type…</option>';}
+function repopulateReclamForm(){const cs=g('rc-cat'),ts=g('rc-type');if(cs)cs.innerHTML=catOptions(cs.value&&cs.value!=='__add__'?cs.value:'');if(ts)ts.innerHTML=typeOptions(ts.value&&ts.value!=='__add__'?ts.value:'');updateReclamSla();}
+function refreshDeptList(){const dl=g('dept-list');if(dl)dl.innerHTML=deptList().map(d=>`<option value="${esc(d)}">`).join('');}
+function openReclamModal(id){
+  refreshDeptList();
+  g('rc-channel').innerHTML=CHANNELS.map(c=>`<option>${c}</option>`).join('');
+  const assOpts='<option value="">— Non assigné —</option>'+collabActive().map(c=>`<option value="${c.id}">${esc(c.name)}${c.dept?' ('+esc(c.dept)+')':''}</option>`).join('');
+  g('rc-assignee').innerHTML=assOpts;
+  const rr=g('rc-reassign-collab');if(rr)rr.innerHTML='<option value="">— Collaborateur —</option>'+collabActive().map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  const r=id?reclamations.find(x=>x.id===id):null;
+  g('rc-id').value=id||'';g('rc-lbl').textContent=r?'Modifier la réclamation':'Nouvelle réclamation';g('rc-sub').textContent=r?(r.ref||''):'';
+  g('rc-received').value=r?r.receivedAt||'':todayStr();
+  g('rc-channel').value=r?(r.channel||'Email'):'Email';
+  g('rc-claimant-type').value=r?(r.claimantType||'client'):'client';
+  g('rc-claimant-name').value=r?r.claimantName||'':'';
+  g('rc-claimant-contact').value=r?r.claimantContact||'':'';
+  g('rc-claimant-id').value=r?r.claimantId||'':'';
+  g('rc-cat').innerHTML=catOptions(r?r.cat:'');
+  g('rc-type').innerHTML=typeOptions(r?r.type:'');
+  g('rc-amount').value=r?(r.amount||''):'';
+  g('rc-assignee').value=r?(r.assignee||''):'';
+  g('rc-dept').value=r?(r.dept||''):'';
+  g('rc-priority').value=r?(r.priority||'med'):'med';
+  g('rc-status').value=r?(r.status||'new'):'new';
+  g('rc-desc').value=r?r.desc||'':'';
+  g('rc-resolution').value=r?r.resolution||'':'';
+  g('rc-del').style.display=(r&&isAdmin())?'inline-flex':'none';
+  g('rc-timeline-wrap').style.display=r?'block':'none';
+  if(r)renderReclamTimeline(id);
+  reclamStatusChange();updateReclamSla();
+  g('ov-reclam').classList.add('open');
+}
+function recEvent(kind,text,extra){return Object.assign({at:new Date().toISOString(),ts:nowStr(),by:curUser?curUser.email:'?',byName:collabName(myCollabId())||(curUser?curUser.email:'?'),kind,text:text||''},extra||{});}
+const EV_META={create:{l:'Création',i:'ti-plus',c:'var(--pur)'},status:{l:'Statut',i:'ti-flag',c:'var(--blu-tx,#1E40AF)'},reassign:{l:'Réaffectation',i:'ti-arrows-exchange',c:'var(--org)'},intervention:{l:'Intervention',i:'ti-tool',c:'var(--tx)'},fix:{l:'Correction',i:'ti-wand',c:'var(--grn-tx)'},comment:{l:'Commentaire',i:'ti-message',c:'var(--tx2)'},block:{l:'Blocage',i:'ti-alert-triangle',c:'var(--red-tx,#DC2626)'}};
+function renderReclamTimeline(id){
+  const r=reclamations.find(x=>x.id===id);const el=g('rc-timeline');if(!el)return;
+  const evs=(r&&r.events||[]).slice().sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  if(!evs.length){el.innerHTML='<div style="font-size:12px;color:var(--tx3)">Aucun événement pour l\'instant.</div>';return;}
+  el.innerHTML=evs.map(e=>{const m=EV_META[e.kind]||EV_META.comment;const blk=e.kind==='block';
+    return`<div style="display:flex;gap:8px;padding:7px 9px;border-left:3px solid ${m.c};background:${blk?'#FEF2F2':'var(--surf2)'};border-radius:6px;margin-bottom:6px">
+      <i class="ti ${m.i}" style="color:${m.c};font-size:14px;margin-top:1px"></i>
+      <div style="flex:1"><div style="font-size:12px;color:var(--tx)"><b style="color:${m.c}">${m.l}</b>${e.text?' — '+esc(e.text):''}</div>
+      <div style="font-size:10px;color:var(--tx3)">${esc(e.byName||e.by||'')} · ${esc(e.ts||'')}</div></div></div>`;}).join('');
+}
+async function pushReclamEvent(id,ev){
+  const r=reclamations.find(x=>x.id===id);if(!r)return;
+  const events=[...(r.events||[]),ev];
+  await db.collection('reclamations').doc(id).set({events,updatedAt:new Date().toISOString()},{merge:true});
+}
+async function addReclamIntervention(){
+  const id=g('rc-id').value;if(!id)return alert('Enregistrez d\'abord la réclamation.');
+  const kind=g('rc-ev-kind').value,text=g('rc-ev-text').value.trim();
+  if(!text)return alert('Décrivez l\'intervention.');
+  try{await pushReclamEvent(id,recEvent(kind,text));await addLog('Réclamation',`${EV_META[kind]?EV_META[kind].l:kind} ajouté(e)`,id);g('rc-ev-text').value='';setTimeout(()=>renderReclamTimeline(id),300);showToast('✓ Ajouté');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+async function reassignReclam(){
+  const id=g('rc-id').value;if(!id)return alert('Enregistrez d\'abord la réclamation.');
+  const r=reclamations.find(x=>x.id===id);if(!r)return;
+  const newCid=g('rc-reassign-collab').value,newDept=g('rc-reassign-dept').value.trim();
+  if(!newCid&&!newDept)return alert('Choisissez un collaborateur et/ou un département.');
+  const fromTxt=(collabName(r.assignee)||'—')+(r.dept?' / '+r.dept:'');
+  const toTxt=(newCid?collabName(newCid):collabName(r.assignee)||'—')+((newDept||r.dept)?' / '+(newDept||r.dept):'');
+  try{
+    const upd={updatedAt:new Date().toISOString()};if(newCid)upd.assignee=newCid;if(newDept)upd.dept=newDept;
+    upd.events=[...(r.events||[]),recEvent('reassign',`${fromTxt} → ${toTxt}`,{from:fromTxt,to:toTxt})];
+    await db.collection('reclamations').doc(id).set(upd,{merge:true});
+    await addLog('Réclamation',`Réaffectée : ${r.ref} (${toTxt})`,id);
+    g('rc-reassign-dept').value='';g('rc-assignee').value=newCid||r.assignee||'';g('rc-dept').value=newDept||r.dept||'';
+    setTimeout(()=>renderReclamTimeline(id),300);showToast('✓ Réaffectée');
+  }catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+function reclamCatChange(){const s=g('rc-cat');if(s.value==='__add__'){const name=prompt('Nom de la nouvelle catégorie :');if(name){const sla=prompt('SLA en jours ouvrés :','5');const added=addReclamCat(name,sla);s.innerHTML=catOptions(added||'');s.value=added||'';}else{s.innerHTML=catOptions('');}}updateReclamSla();}
+function reclamTypeChange(){const s=g('rc-type');if(s.value==='__add__'){const name=prompt('Nom du nouveau type :');if(name){const added=addReclamType(name);s.innerHTML=typeOptions(added||'');s.value=added||'';}else{s.innerHTML=typeOptions('');}}}
+function reclamStatusChange(){const st=g('rc-status').value;g('rc-resolution-grp').style.display=(st==='resolved'||st==='rejected')?'block':'none';}
+function updateReclamSla(){const rec=g('rc-received').value,cat=g('rc-cat').value;const el=g('rc-sla-display');if(!el)return;if(!rec||!cat||cat==='__add__'){el.value='—';return;}el.value=reclamDue({receivedAt:rec,cat})+' ('+recSla(cat)+'j ouvr.)';}
+async function saveReclam(){
+  const name=g('rc-claimant-name').value.trim();if(!name)return alert('Le nom du réclamant est obligatoire.');
+  const received=g('rc-received').value;if(!received)return alert('La date de réception est obligatoire.');
+  let cat=g('rc-cat').value;if(cat==='__add__')cat='Autre';
+  let type=g('rc-type').value;if(type==='__add__')type='';
+  const id=g('rc-id').value,status=g('rc-status').value,dept=g('rc-dept').value.trim(),assignee=g('rc-assignee').value;
+  const prev=id?reclamations.find(x=>x.id===id):null;
+  const data=clean({receivedAt:received,channel:g('rc-channel').value,claimantType:g('rc-claimant-type').value,claimantName:name,claimantContact:g('rc-claimant-contact').value.trim(),claimantId:g('rc-claimant-id').value.trim(),
+    cat,type,amount:parseFloat(g('rc-amount').value)||0,assignee,dept,priority:g('rc-priority').value,status,desc:g('rc-desc').value.trim(),resolution:g('rc-resolution').value.trim()});
+  if(REC_CLOSED.includes(status))data.resolvedAt=(prev&&prev.resolvedAt)?prev.resolvedAt:todayStr();else data.resolvedAt='';
+  try{
+    if(id){
+      const events=[...(prev&&prev.events||[])];
+      if(prev&&prev.status!==status)events.push(recEvent('status',`${RSM[prev.status]?RSM[prev.status].l:prev.status} → ${RSM[status]?RSM[status].l:status}`));
+      if(prev&&(prev.assignee!==assignee||((prev.dept||'')!==dept)))events.push(recEvent('reassign',`${(collabName(prev.assignee)||'—')+(prev.dept?' / '+prev.dept:'')} → ${(collabName(assignee)||'—')+(dept?' / '+dept:'')}`));
+      await db.collection('reclamations').doc(id).set({...data,events,updatedAt:new Date().toISOString()},{merge:true});await addLog('Réclamation',`Modifiée : ${prev?prev.ref:''} (${name})`,id);
+    }
+    else{const ref='REC-'+Date.now().toString(36).toUpperCase().slice(-6);const r=await db.collection('reclamations').add({...data,ref,comments:[],events:[recEvent('create','Réclamation créée')],createdAt:new Date().toISOString(),createdBy:curUser?curUser.email:'?'});await addLog('Réclamation',`Créée : ${ref} (${name})`,r.id);}
+    closeOv('ov-reclam');showToast('✓ Réclamation enregistrée');
+  }catch(err){alert('Échec : '+(err&&err.message?err.message:err));}
+}
+async function deleteReclam(){const id=g('rc-id').value;if(!id)return;if(!isAdmin())return alert('Suppression réservée à l\'administrateur.');if(!confirm('Supprimer cette réclamation ?'))return;try{await db.collection('reclamations').doc(id).delete();await addLog('Réclamation','Réclamation supprimée',id);closeOv('ov-reclam');showToast('Réclamation supprimée');}catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}}
+async function markReclam(id,status){const r=reclamations.find(x=>x.id===id);if(!r)return;const lbl=RSM[status]?RSM[status].l:status;try{await db.collection('reclamations').doc(id).set({status,resolvedAt:REC_CLOSED.includes(status)?todayStr():''},{merge:true});await addLog('Réclamation',`${lbl} : ${r.ref}`,id);showToast('✓ '+lbl);}catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}}
+function setRecFilter(v,el){recFilter=v;document.querySelectorAll('#rec-fbar .chip').forEach(c=>c.classList.remove('on'));if(el)el.classList.add('on');renderReclam();}
+
+// --- Rendu ---
+function renderReclam(){
+  const q=(g('rec-search').value||'').toLowerCase();
+  let list=(reclamations).filter(r=>!recClosed(r));
+  if(collabFilter)list=list.filter(r=>r.assignee===collabFilter);
+  if(recFilter!=='all')list=list.filter(r=>r.status===recFilter);
+  if(q)list=list.filter(r=>((r.ref||'')+(r.claimantName||'')+(r.cat||'')+(r.type||'')+collabName(r.assignee)).toLowerCase().includes(q));
+  list.sort((a,b)=>{const da=reclamDue(a),db2=reclamDue(b);return (da||'').localeCompare(db2||'');});
+  const tb=g('rec-body');
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty"><i class="ti ti-message-off"></i>Aucune réclamation active.</td></tr>';return;}
+  tb.innerHTML=list.map(r=>{const due=reclamDue(r),late=due&&!recClosed(r)&&due<todayStr();return`<tr class="row${late?' od':''}" onclick="openReclamModal('${r.id}')">
+    <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${esc(r.ref||'')}</td>
+    <td class="wrap">${esc(r.claimantName||'—')}<div style="font-size:10px;color:var(--tx3)">${r.claimantType==='agent'?'Agent':'Client'}${r.amount?' · '+r.amount.toLocaleString('fr-FR')+' TND':''}</div></td>
+    <td><span class="tag">${esc(r.cat||'—')}</span>${r.type?`<div style="font-size:10px;color:var(--tx3)">${esc(r.type)}</div>`:''}</td>
+    <td style="font-size:11px">${r.amount?r.amount.toLocaleString('fr-FR'):'—'}</td>
+    <td>${collabAv(r.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(r.assignee),9)}</span></td>
+    <td>${bdg(RSM,r.status)}</td>
+    <td style="font-size:11px;color:${late?'var(--red-tx,#DC2626)':'var(--tx2)'};font-weight:${late?'600':'400'}">${due||'—'}</td>
+    <td style="white-space:nowrap"><button class="btn btn-sm btn-p" onclick="event.stopPropagation();markReclam('${r.id}','resolved')" title="Résoudre"><i class="ti ti-check"></i></button> <button class="btn btn-sm" onclick="event.stopPropagation();markReclam('${r.id}','rejected')" title="Rejeter"><i class="ti ti-ban"></i></button></td></tr>`;}).join('');
+}
+function renderReclamDone(){
+  const q=(g('recd-search').value||'').toLowerCase();
+  let list=(reclamations).filter(r=>recClosed(r));
+  if(collabFilter)list=list.filter(r=>r.assignee===collabFilter);
+  list=list.filter(r=>inRange(r.resolvedAt||'',dateRanges.reclamdone));
+  if(q)list=list.filter(r=>((r.ref||'')+(r.claimantName||'')+(r.cat||'')+collabName(r.assignee)).toLowerCase().includes(q));
+  list.sort((a,b)=>(b.resolvedAt||'').localeCompare(a.resolvedAt||''));
+  const cnt=g('recd-count');if(cnt)cnt.textContent=list.length+' réclamation(s)';
+  const tb=g('recd-body');
+  if(!list.length){tb.innerHTML='<tr><td colspan="9" class="empty"><i class="ti ti-message-check"></i>Aucune réclamation traitée.</td></tr>';return;}
+  tb.innerHTML=list.map(r=>{const met=recSlaMet(r);const sla=met==null?'<span style="color:var(--tx3)">—</span>':met?'<span class="badge b-done" style="font-size:9px">✓ SLA</span>':'<span class="badge b-od" style="font-size:9px">✗ SLA</span>';
+    return`<tr class="row" onclick="openReclamModal('${r.id}')">
+    <td style="font-size:10px;font-family:'DM Mono',monospace;color:var(--tx2)">${esc(r.ref||'')}</td>
+    <td class="wrap">${esc(r.claimantName||'—')}</td>
+    <td><span class="tag">${esc(r.cat||'—')}</span></td>
+    <td>${collabAv(r.assignee)} <span style="font-size:11px;color:var(--tx2)">${trunc(collabName(r.assignee),9)}</span></td>
+    <td style="font-size:11px;color:var(--tx2)">${r.receivedAt||'—'}</td>
+    <td style="font-size:11px;color:var(--grn-tx);font-weight:600">${r.resolvedAt||'—'}</td>
+    <td>${bdg(RSM,r.status)}</td>
+    <td>${sla}</td>
+    <td><button class="btn btn-sm" onclick="event.stopPropagation();markReclam('${r.id}','new')" title="Rouvrir"><i class="ti ti-arrow-back-up"></i></button></td></tr>`;}).join('');
+}
+function reclamTimelineText(r){return (r.events||[]).map(e=>`[${e.ts||''}] ${(EV_META[e.kind]?EV_META[e.kind].l:e.kind)}${e.text?': '+e.text:''} (${e.byName||e.by||''})`).join(' | ');}
+function reclamRows(){return (reclamations).map(r=>({Réf:r.ref||'',Réclamant:r.claimantName||'',Type_réclamant:r.claimantType||'',Contact:r.claimantContact||'',Identifiant:r.claimantId||'',Canal:r.channel||'',Catégorie:r.cat||'',Type:r.type||'',Montant:r.amount||0,'Assigné à':collabName(r.assignee),Département:r.dept||'',Statut:(RSM[r.status]?RSM[r.status].l:r.status),Priorité:(PM[r.priority]?PM[r.priority].l:r.priority),'Reçue le':r.receivedAt||'','Échéance SLA':reclamDue(r),'Clôturée le':r.resolvedAt||'',SLA:(recSlaMet(r)==null?'':(recSlaMet(r)?'Respecté':'Dépassé')),Description:r.desc||'',Résolution:r.resolution||'',Historique:reclamTimelineText(r)}));}
+function exportReclamCSV(){
+  const rows=reclamRows();if(!rows.length)return alert('Aucune réclamation à exporter.');
+  const h=Object.keys(rows[0]);
+  const csv=[h.join(','),...rows.map(o=>h.map(k=>`"${String(o[k]).replace(/"/g,'""')}"`).join(','))].join('\n');
+  dlFile('\uFEFF'+csv,'text/csv','reclamations_'+todayStr()+'.csv');addLog('Export','Export CSV réclamations','—');
+}
+function exportReclamXLSX(){
+  if(typeof XLSX==='undefined')return alert('Bibliothèque Excel non chargée.');
+  const rows=reclamRows();
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{Info:'Aucune donnée'}]),'Réclamations');
+  XLSX.writeFile(wb,'reclamations_'+todayStr()+'.xlsx');addLog('Export','Export Excel réclamations','—');
+}
 // EXPORT
 function exportCSV(){
   const h=['ID','Titre','Type','Catégorie','Statut','Priorité','Assigné à','Avancement','Échéance','Référence','Origine','Créé le','Clôturé le','Cycle (j)','Récurrence','Nb Commentaires','Nb PJ','Nb Étapes'];
