@@ -219,7 +219,7 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
 .fab2:hover{width:auto;padding:0 18px;justify-content:flex-start}
 .fab2:hover .fab2-lbl{max-width:130px;opacity:1;margin-left:6px}
 .fab2 .cnt{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px}
-.fab2:hover{filter:brightness(1.05)}.fab2 .cnt{background:rgba(255,255,255,.28);border-radius:20px;padding:1px 8px;font-size:11px}
+.fab2:hover{filter:brightness(1.05)}
 .diag{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;padding:6px 2px}
 .diag-node{background:var(--surf);border:1.5px solid var(--pur);border-radius:10px;padding:9px 12px;min-width:150px;max-width:210px;display:flex;flex-direction:column;gap:3px}
 .diag-node .dn-num{font-size:9px;font-weight:700;color:var(--pur);text-transform:uppercase;letter-spacing:.04em}
@@ -343,8 +343,8 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
     <button class="btn btn-sm" onclick="toggleProfileMenu(event)" title="Menu" style="padding:4px 6px"><i class="ti ti-dots-vertical" style="font-size:16px"></i></button>
     <div id="profile-menu" style="display:none;position:absolute;bottom:56px;right:12px;left:12px;background:var(--surf);border:1px solid var(--bord);border-radius:var(--rl);box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:120;overflow:hidden">
       <div style="padding:12px 14px;border-bottom:1px solid var(--bord)"><div id="pm-name" style="font-size:13px;font-weight:600">—</div><div id="pm-email" style="font-size:11px;color:var(--tx2)">—</div></div>
-      <button class="pm-item" onclick="showToast('Profil — bientôt disponible');closeProfileMenu()"><i class="ti ti-user"></i> Profil</button>
-      <button class="pm-item" onclick="showToast('Paramètres — bientôt disponible');closeProfileMenu()"><i class="ti ti-settings"></i> Paramètres</button>
+      <button class="pm-item" onclick="openProfile()"><i class="ti ti-user"></i> Profil</button>
+      <button class="pm-item" id="pm-settings" onclick="openSettings()"><i class="ti ti-settings"></i> Paramètres</button>
       <div style="border-top:1px solid var(--bord);padding:8px 14px">
         <div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="ti ti-palette" style="font-size:12px"></i> Thème</div>
         <div style="display:flex;gap:10px">
@@ -898,6 +898,49 @@ td.wrap{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:any
 </div>
 </div>
 
+<!-- MODAL JOURS FÉRIÉS -->
+<div class="ov" id="ov-holidays" onclick="ovClose('ov-holidays',event)">
+<div class="modal" style="width:460px">
+  <div class="mhd"><div><div class="mtitle"><i class="ti ti-calendar-off"></i> Jours fériés</div><div class="msub">Exclus des échéances et des SLA (jours ouvrés)</div></div><button class="cx" onclick="closeOv('ov-holidays')"><i class="ti ti-x"></i></button></div>
+  <div class="frow" style="align-items:flex-end">
+    <div class="fg" style="margin-bottom:0"><label>Date</label><input type="date" id="hol-date"></div>
+    <div class="fg" style="margin-bottom:0;flex:1"><label>Libellé</label><input type="text" id="hol-label" placeholder="ex : Fête du Travail"></div>
+    <div class="fg" style="margin-bottom:0"><button class="btn btn-p btn-sm" onclick="addHoliday()"><i class="ti ti-plus"></i> Ajouter</button></div>
+  </div>
+  <div class="sdiv" style="margin-top:14px"><i class="ti ti-list" style="font-size:13px"></i>Jours enregistrés</div>
+  <div id="hol-list" style="max-height:280px;overflow-y:auto"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-sm" onclick="closeOv('ov-holidays')">Fermer</button></div>
+</div>
+</div>
+
+<!-- MODAL PROFIL -->
+<div class="ov" id="ov-profile" onclick="ovClose('ov-profile',event)">
+<div class="modal" style="width:420px">
+  <div class="mhd"><div><div class="mtitle"><i class="ti ti-user"></i> Mon profil</div></div><button class="cx" onclick="closeOv('ov-profile')"><i class="ti ti-x"></i></button></div>
+  <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);font-size:13px"><span style="color:var(--tx2)">Nom</span><b id="pf-name">—</b></div>
+  <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);font-size:13px"><span style="color:var(--tx2)">Email</span><b id="pf-email">—</b></div>
+  <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);font-size:13px"><span style="color:var(--tx2)">Rôle</span><b id="pf-role">—</b></div>
+  <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);font-size:13px"><span style="color:var(--tx2)">Département</span><b id="pf-dept">—</b></div>
+  <div style="margin-top:14px"><button class="btn btn-p" onclick="sendReset()"><i class="ti ti-key"></i> Réinitialiser mon mot de passe</button></div>
+  <div id="pf-msg" style="font-size:12px;color:var(--tx2);margin-top:8px"></div>
+  <div style="font-size:11px;color:var(--tx3);margin-top:4px">Un email de réinitialisation vous sera envoyé. Le mot de passe se change via le lien reçu.</div>
+  <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-sm" onclick="closeOv('ov-profile')">Fermer</button></div>
+</div>
+</div>
+
+<!-- MODAL PARAMÈTRES -->
+<div class="ov" id="ov-settings" onclick="ovClose('ov-settings',event)">
+<div class="modal" style="width:440px">
+  <div class="mhd"><div><div class="mtitle"><i class="ti ti-settings"></i> Paramètres</div><div class="msub">Configuration de l'application</div></div><button class="cx" onclick="closeOv('ov-settings')"><i class="ti ti-x"></i></button></div>
+  <button class="pm-item" style="border:1px solid var(--bord);border-radius:8px;margin-bottom:8px" onclick="closeOv('ov-settings');openReclamConfig()"><i class="ti ti-folder"></i> Catégories &amp; SLA des réclamations</button>
+  <button class="pm-item" style="border:1px solid var(--bord);border-radius:8px;margin-bottom:8px" onclick="closeOv('ov-settings');navTo('collabs')"><i class="ti ti-users"></i> Collaborateurs &amp; départements</button>
+  <button class="pm-item" style="border:1px solid var(--bord);border-radius:8px;margin-bottom:8px" onclick="closeOv('ov-settings');openHolidays()"><i class="ti ti-calendar-off"></i> Jours fériés</button>
+  <button class="pm-item" style="border:1px solid var(--bord);border-radius:8px" onclick="closeOv('ov-settings');navTo('audit')"><i class="ti ti-tools"></i> Maintenance &amp; journal (Audit)</button>
+  <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-sm" onclick="closeOv('ov-settings')">Fermer</button></div>
+</div>
+</div>
+
+<!-- MODAL PROFIL END -->
 <datalist id="dept-list"></datalist>
 <!-- MODAL PROPOSITION (À VALIDER) -->
 <div class="ov" id="ov-inbox" onclick="ovClose('ov-inbox',event)">
@@ -1190,6 +1233,7 @@ auth.onAuthStateChanged(async user=>{
     subscribeInbox();
     g('uma-bubble').style.display='flex';
     subscribeChat();subscribeNotifs();
+    subscribeHolidays();
     loadRefs();
     loadLogs();
   }else{
@@ -1206,6 +1250,7 @@ auth.onAuthStateChanged(async user=>{
     if(unsubInbox){unsubInbox();unsubInbox=null;inbox=[];}
     if(unsubChat){unsubChat();unsubChat=null;chatMsgs=[];}
     if(unsubNotifs){unsubNotifs();unsubNotifs=null;notifs=[];}
+    if(unsubHolidays){unsubHolidays();unsubHolidays=null;holidays=[];HOLIDAYS.length=0;}
     const ub=g('uma-bubble');if(ub)ub.style.display='none';const up=g('uma-panel');if(up)up.classList.remove('open');umaOpen=false;
   }
 });
@@ -1298,6 +1343,7 @@ function applyRoleUI(){
   const cl=g('clearlog-btn');if(cl)cl.style.display=adm?'inline-flex':'none';
   const fb=g('fixwe-btn');if(fb)fb.style.display=adm?'inline-flex':'none';
   ['dedup-btn','reproc-btn'].forEach(id=>{const b=g(id);if(b)b.style.display=adm?'inline-flex':'none';});
+  const psx=g('pm-settings');if(psx)psx.style.display=adm?'flex':'none';
   ['cf-tasks','cf-completed','cf-reqs','cf-reqdone','cf-recur','cf-reclam','cf-reclamdone','cf-alerts'].forEach(id=>{const s=g(id);if(s)s.style.display=mgr?'':'none';});
   if(!adm&&['collabs','audit','stats','report'].includes(curTab)){const d=g('nav-dashboard');goTab('dashboard',d);}
 }
@@ -2057,6 +2103,11 @@ async function markReq(id,st){
 }
 async function reopen(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
+  if(e.recur&&e.recur.enabled){
+    const sig=seriesSig(e);
+    const next=entries.find(x=>x.id!==e.id&&x.status!=='done'&&(x.recurParentId===e.id||(sig&&seriesSig(x)===sig)));
+    if(next){alert('Impossible de rouvrir : l\'occurrence suivante de cette tâche récurrente existe déjà (éch. '+(next.due||'?')+'). Traitez ou supprimez-la d\'abord pour éviter un doublon.');return;}
+  }
   try{await save({status:'new',completedAt:''},id);await addLog(isTask(e)?'Tâche':'Demande',`Réouverture : "${e.title}"`,id);showToast('↩ Rouvert');}
   catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
 }
@@ -2928,7 +2979,45 @@ function accentM(){return (getComputedStyle(document.documentElement).getPropert
 function setTheme(t){try{localStorage.setItem('ishango-theme',t);}catch(e){}document.documentElement.setAttribute('data-theme',t||'');if(typeof render==='function'&&curUser)render();}
 (function(){try{var t=localStorage.getItem('ishango-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 function toggleProfileMenu(ev){if(ev)ev.stopPropagation();const m=g('profile-menu');if(!m)return;const show=m.style.display==='none';m.style.display=show?'block':'none';if(show){const em=curUser?curUser.email:'';g('pm-name').textContent=collabName(myCollabId())||em||'—';g('pm-email').textContent=em;setTimeout(()=>document.addEventListener('click',closeProfileMenu,{once:true}),0);}}
+// ---- JOURS FÉRIÉS ----
+let holidays=[],unsubHolidays=null;
+function subscribeHolidays(){
+  if(unsubHolidays)unsubHolidays();
+  unsubHolidays=db.collection('holidays').orderBy('date').onSnapshot(snap=>{
+    holidays=snap.docs.map(d=>({id:d.id,...d.data()}));
+    HOLIDAYS.length=0;holidays.forEach(h=>{if(h.date)HOLIDAYS.push(h.date);});
+    if(g('ov-holidays').classList.contains('open'))renderHolidays();
+    if(curUser){updateBadges();render();}
+  },err=>{});
+}
+function openHolidays(){renderHolidays();g('ov-holidays').classList.add('open');}
+function renderHolidays(){
+  const c=g('hol-list');if(!c)return;
+  if(!holidays.length){c.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:8px 0">Aucun jour férié enregistré.</div>';return;}
+  c.innerHTML=holidays.map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bord)">
+    <span class="mono" style="font-size:12px;color:var(--pur-d,#3730A3);min-width:92px">${esc(h.date)}</span>
+    <span style="flex:1;font-size:13px">${esc(h.label||'—')}</span>
+    <button class="btn btn-sm btn-d" onclick="delHoliday('${h.id}')" title="Supprimer"><i class="ti ti-trash"></i></button></div>`).join('');
+}
+async function addHoliday(){
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
+  const date=g('hol-date').value,label=g('hol-label').value.trim();
+  if(!date)return alert('Choisissez une date.');
+  if(holidays.some(h=>h.date===date))return alert('Cette date est déjà enregistrée.');
+  try{await db.collection('holidays').add({date,label});await addLog('Jours fériés',`Ajouté : ${date}${label?' ('+label+')':''}`,'—');g('hol-date').value='';g('hol-label').value='';}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
+async function delHoliday(id){
+  if(!isAdmin())return alert('Réservé à l\'administrateur.');
+  const h=holidays.find(x=>x.id===id);if(!confirm('Supprimer ce jour férié ?'))return;
+  try{await db.collection('holidays').doc(id).delete();await addLog('Jours fériés',`Supprimé : ${h?h.date:''}`,'—');}
+  catch(err){alert('Erreur : '+(err&&err.message?err.message:err));}
+}
 function closeProfileMenu(){const m=g('profile-menu');if(m)m.style.display='none';}
+function openProfile(){closeProfileMenu();const c=(typeof meCollab==='function'?meCollab():null)||{};g('pf-name').textContent=collabName(myCollabId())||(curUser?curUser.email:'—');g('pf-email').textContent=curUser?curUser.email:'—';g('pf-role').textContent=isAdmin()?'Administrateur':(isManager&&isManager()?'Manager':'Collaborateur');g('pf-dept').textContent=(c&&c.dept)||'—';g('pf-msg').textContent='';g('ov-profile').classList.add('open');}
+function sendReset(){const email=curUser?curUser.email:'';if(!email)return;g('pf-msg').textContent='Envoi…';auth.sendPasswordResetEmail(email).then(()=>{g('pf-msg').innerHTML='<span style="color:var(--grn-tx,#059669)">✓ Email envoyé à '+esc(email)+'. Vérifiez votre boîte (et les spams).</span>';}).catch(err=>{g('pf-msg').innerHTML='<span style="color:var(--red-tx,#DC2626)">Erreur : '+esc(err.message||String(err))+'</span>';});}
+function openSettings(){closeProfileMenu();g('ov-settings').classList.add('open');}
+function navTo(t){const b=[...document.querySelectorAll('.nav')].find(n=>((n.getAttribute('onclick')||'').includes("'"+t+"'")));goTab(t,b);}
 // EXPORT
 function exportCSV(){
   const h=['ID','Titre','Type','Catégorie','Statut','Priorité','Assigné à','Avancement','Échéance','Référence','Origine','Créé le','Clôturé le','Cycle (j)','Récurrence','Nb Commentaires','Nb PJ','Nb Étapes'];
